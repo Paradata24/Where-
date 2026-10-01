@@ -13,6 +13,7 @@ Die ausführliche Projektbeschreibung steht in [CLAUDE.md](CLAUDE.md).
 | `einstellungen/` | alle einstellbaren Werte (Neigung, Fläche, Gleitzahl …) |
 | `analyse/` | Python-Skripte der Berechnung |
 | `rohdaten/` | heruntergeladene Höhenmodelle (nur lokal, nicht auf GitHub) |
+| `daten/` | kleine Eingangsdaten (OSM, bekannte Startplätze) und [QUELLEN.md](daten/QUELLEN.md) |
 | `ergebnisse/` | kompakte Ergebnisse (z. B. GeoJSON) |
 | `docs/` | die Website (GitHub Pages) |
 | `docs/vorschau/` | Testseiten zum Prüfen von Zwischenergebnissen |

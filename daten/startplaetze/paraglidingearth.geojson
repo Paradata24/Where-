@@ -1,0 +1,62 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "15969",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     11.4522,
+     46.5954
+    ]
+   },
+   "properties": {
+    "name": "Schwarzseespitze - Rittner Horn",
+    "place": "paragliding takeoff",
+    "countryCode": "it",
+    "takeoff_altitude": "2049",
+    "takeoff_description": "grass field - SW",
+    "landing_lat": "46.5793",
+    "landing_lng": "11.456",
+    "takeoff_parking_lat": "",
+    "takeoff_parking_lng": "",
+    "landing_parking_lat": "46.5756",
+    "landing_parking_lng": "11.4467",
+    "N": "0",
+    "NE": "0",
+    "E": "0",
+    "SE": "1",
+    "S": "2",
+    "SW": "2",
+    "W": "2",
+    "NW": "0",
+    "paragliding": "1",
+    "hanggliding": "0",
+    "thermals": "1",
+    "soaring": "1",
+    "winch": "0",
+    "xc": "1",
+    "flatland": "0",
+    "pge_site_id": "15969",
+    "last_edit": "",
+    "pge_link": "http://www.paraglidingearth.com/?site=15969",
+    "ffvl_site_id": "0",
+    "flight_rules": "",
+    "going_there": "Hike&Fly or cable car",
+    "comments": "",
+    "weather": "http://wetter.provinz.bz.it/\nWind station -> http://wetter.provinz.bz.it/hoehenwindstationen.asp?stat_stid=105\nWebcam -> https://rittnerhorn.it-wms.com/",
+    "landing": {
+     "site": "Schwarzseespitze - Rittner Horn",
+     "landing_name": "Landing \"Saltnerhütte\"",
+     "landing_lat": "46.5793",
+     "landing_lng": "11.456",
+     "landing_altitude": "1677",
+     "landing_description": "no official landing area - at the valley station there is an absolute ban on land"
+    }
+   }
+  }
+ ],
+ "quelle": "© ParaglidingEarth-Mitwirkende, CC BY-SA 3.0 (www.paraglidingearth.com)",
+ "abgerufen": "2026-10-01"
+}
