@@ -52,7 +52,7 @@ def overpass(e, abfrage):
         for url in o["overpass_urls"]:
             try:
                 r = requests.post(url, data={"data": abfrage},
-                                  headers={"User-Agent": o["user_agent"]}, timeout=200)
+                                  headers={"User-Agent": o["user_agent"]}, timeout=120)
                 if r.status_code == 200:
                     return r.json()
                 letzter = f"{url}: HTTP {r.status_code}"
@@ -105,8 +105,11 @@ def main():
     ziel = DATEN / "osm"
     ziel.mkdir(parents=True, exist_ok=True)
     stand = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # Optional: nur bestimmte Themen laden, z. B. "python 02_osm_laden.py wald"
+    auswahl = sys.argv[1:] or list(THEMEN)
     ok = True
-    for name, filter_ in THEMEN.items():
+    for name in auswahl:
+        filter_ = THEMEN[name]
         abfrage = "[out:json][timeout:180];(" + "".join(f"{f}{bbox};" for f in filter_) + ");out geom;"
         print(f"Lade {name} …")
         try:
