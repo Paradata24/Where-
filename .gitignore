@@ -1,0 +1,29 @@
+# Große Rohdaten (Höhenmodelle usw.) gehören nicht ins Repository.
+# Die Skripte laden sie bei Bedarf selbst herunter.
+rohdaten/*
+!rohdaten/.gitkeep
+
+# Große Rasterdateien überall
+*.tif
+*.tiff
+*.asc
+*.las
+*.laz
+*.vrt
+*.zip
+*.pbf
+
+# Zwischenspeicher der Analyse
+zwischenspeicher/
+cache/
+
+# Python-Reste
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Betriebssystem / Editor
+.DS_Store
+Thumbs.db
