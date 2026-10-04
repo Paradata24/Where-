@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Startplatz-Finder Südtirol</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --bg: #ffffff; --text: #1d2327; --muted: #5b6770; --rand: #d5dbe0;
+    --frei: #1f8a4c; --blockiert: #8a96a0; --akzent: #0b63b6; --warn-bg: #fff4d6; --warn-rand: #e0b13a;
+    --flaeche: #36b06b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1f23; --text: #e8ecef; --muted: #a3adb5; --rand: #3a4148;
+      --warn-bg: #3a3017; --warn-rand: #a07e25; --akzent: #5aa9f0;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .seite { display: flex; height: 100%; }
+  aside { width: 340px; flex: none; overflow-y: auto; padding: 14px 16px 24px; border-right: 1px solid var(--rand); }
+  #karte { flex: 1; min-height: 300px; }
+  h1 { font-size: 19px; margin: 0 0 8px; }
+  h2 { font-size: 14px; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .hinweis { background: var(--warn-bg); border: 1px solid var(--warn-rand); border-radius: 6px; padding: 9px 11px; font-size: 14px; }
+  .hinweis strong { display: block; margin-bottom: 2px; }
+  .rose { display: block; margin: 4px auto 0; width: 230px; height: 230px; }
+  .rose path { fill: #e9eef2; stroke: var(--bg); stroke-width: 1.5; cursor: pointer; }
+  .rose path:hover { fill: #cfe0ef; }
+  .rose path.an { fill: var(--akzent); }
+  .rose text { font-size: 10.5px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; fill: #33404a; }
+  .rose text.an { fill: #fff; font-weight: 600; }
+  .knoepfe { display: flex; gap: 6px; justify-content: center; margin-top: 4px; }
+  button { font: inherit; font-size: 13px; padding: 4px 10px; border: 1px solid var(--rand); background: var(--bg); color: var(--text); border-radius: 4px; cursor: pointer; }
+  label { display: flex; align-items: center; gap: 7px; margin: 6px 0; }
+  input[type="number"] { width: 70px; font: inherit; padding: 2px 4px; }
+  .anzahl { font-weight: 600; margin-top: 12px; }
+  .legende div { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 14px; }
+  .punkt { width: 13px; height: 13px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #0005; flex: none; }
+  .klein { font-size: 12.5px; color: var(--muted); }
+  .leaflet-popup-content { font-size: 13.5px; }
+  .leaflet-popup-content table { border-collapse: collapse; }
+  .leaflet-popup-content td { padding: 1px 8px 1px 0; vertical-align: top; }
+  a { color: var(--akzent); }
+  @media (max-width: 760px) {
+    .seite { flex-direction: column-reverse; }
+    aside { width: auto; max-height: 50%; border-right: 0; border-top: 1px solid var(--rand); }
+    #karte { min-height: 50%; }
+  }
+</style>
+</head>
+<body>
+<div class="seite">
+  <aside>
+    <h1>Startplatz-Finder Südtirol</h1>
+    <div class="hinweis">
+      <strong>Nur Kandidaten – keine geprüften oder erlaubten Startplätze!</strong>
+      Die Flächen wurden automatisch aus Gelände- und Kartendaten berechnet. Ob dort gestartet
+      werden darf und kann (Eigentum, Schutzgebiete, Luftraum, Gelände vor Ort, Wetter),
+      muss jede Pilotin und jeder Pilot selbst prüfen.
+    </div>
+
+    <h2>Startrichtung</h2>
+    <svg class="rose" id="rose" viewBox="-115 -115 230 230" aria-label="Windrose zur Auswahl der Startrichtung"></svg>
+    <div class="knoepfe"><button id="alle">alle</button><button id="keine">keine</button></div>
+    <p class="klein">Richtung, in die man startet (= Wind von vorne). Mehrere Felder wählbar.</p>
+
+    <h2>Filter</h2>
+    <label><input type="checkbox" id="nurFrei" checked> nur mit freiem Abflug</label>
+    <label><input type="checkbox" id="wegAn"> höchstens <input type="number" id="wegMax" min="0" step="10" value="50"> m bis zum nächsten Weg</label>
+    <label><input type="checkbox" id="ohneWald"> ohne Hinweis „früher Wald“</label>
+    <label><input type="checkbox" id="flaechen" checked> Startflächen anzeigen</label>
+    <label><input type="checkbox" id="bekannte" checked> bekannte Startplätze (ParaglidingEarth)</label>
+    <div class="anzahl" id="anzahl"></div>
+
+    <h2>Legende</h2>
+    <div class="legende">
+      <div><span class="punkt" style="background:var(--frei)"></span> Kandidat mit freiem Abflug</div>
+      <div><span class="punkt" style="background:var(--blockiert)"></span> Kandidat, Abflug blockiert</div>
+      <div><span class="punkt" style="background:#d6336c;border-radius:2px"></span> bekannter Startplatz</div>
+      <div><span style="width:16px;height:11px;background:var(--flaeche);opacity:.5;border:1px solid var(--flaeche)"></span> Startfläche</div>
+    </div>
+
+    <h2>Über die Berechnung</h2>
+    <p class="klein" id="info">Lade …</p>
+    <p class="klein">Methode nach E. Egger, „Investigation of routing possibilities for Hike and Fly
+      within paragliding“, TU Graz 2022. Code und Einstellungen:
+      <a href="https://github.com/Paradata24/Where-">GitHub</a>.</p>
+  </aside>
+  <div id="karte"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const PROVINZ = "Autonome Provinz Bozen – Südtirol";
+const karte = L.map("karte", { zoomControl: true }).setView([46.585, 11.455], 14);
+
+const hintergrund = {
+  "Topografisch (OpenTopoMap)": L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+    maxZoom: 17, attribution: 'Karte: © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA), Daten: © OpenStreetMap-Mitwirkende'
+  }),
+  "Orthofoto 2023 (Provinz)": L.tileLayer.wms("https://geoservices.buergernetz.bz.it/mapproxy/ows", {
+    layers: "p_bz-Orthoimagery:Aerial-2023-RGB", format: "image/jpeg", maxZoom: 20,
+    attribution: "Orthofoto 2023: " + PROVINZ + " (CC BY 4.0)"
+  }),
+  "Schummerung Gelände (Provinz)": L.tileLayer.wms("https://geoservices9.civis.bz.it/geoserver/ows", {
+    layers: "p_bz-Elevation:DigitalTerrainModel-2.5m-Hillshade", format: "image/png", maxZoom: 19,
+    attribution: "Geländemodell: " + PROVINZ + " (CC0)"
+  })
+};
+hintergrund["Topografisch (OpenTopoMap)"].addTo(karte);
+L.control.layers(hintergrund, null, { collapsed: true }).addTo(karte);
+L.control.scale({ imperial: false }).addTo(karte);
+
+// --- Windrose ------------------------------------------------------------
+const SEKTOREN = ["N","NNO","NO","ONO","O","OSO","SO","SSO","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const gewaehlt = new Set(["S", "SSW"]);
+try { const g = JSON.parse(localStorage.getItem("sektoren")); if (Array.isArray(g)) { gewaehlt.clear(); g.forEach(s => gewaehlt.add(s)); } } catch (e) {}
+const rose = document.getElementById("rose");
+const NS = "http://www.w3.org/2000/svg";
+function punkt(r, grad) { const w = (grad - 90) * Math.PI / 180; return [r * Math.cos(w), r * Math.sin(w)]; }
+SEKTOREN.forEach((name, i) => {
+  const mitte = i * 22.5, a = mitte - 11.25, b = mitte + 11.25, ri = 32, ra = 110;
+  const [x1, y1] = punkt(ri, a), [x2, y2] = punkt(ra, a), [x3, y3] = punkt(ra, b), [x4, y4] = punkt(ri, b);
+  const p = document.createElementNS(NS, "path");
+  p.setAttribute("d", `M${x1},${y1} L${x2},${y2} A${ra},${ra} 0 0 1 ${x3},${y3} L${x4},${y4} A${ri},${ri} 0 0 0 ${x1},${y1} Z`);
+  p.dataset.sektor = name;
+  const titel = document.createElementNS(NS, "title"); titel.textContent = name; p.appendChild(titel);
+  const [tx, ty] = punkt(75, mitte);
+  const t = document.createElementNS(NS, "text"); t.setAttribute("x", tx); t.setAttribute("y", ty); t.textContent = name;
+  p.addEventListener("click", () => { gewaehlt.has(name) ? gewaehlt.delete(name) : gewaehlt.add(name); aktualisieren(); });
+  rose.appendChild(p); rose.appendChild(t);
+});
+document.getElementById("alle").onclick = () => { SEKTOREN.forEach(s => gewaehlt.add(s)); aktualisieren(); };
+document.getElementById("keine").onclick = () => { gewaehlt.clear(); aktualisieren(); };
+
+// --- Daten ---------------------------------------------------------------
+let kandidaten = [], flaechen = null, info = null;
+const ebeneKandidaten = L.layerGroup().addTo(karte);
+const ebeneFlaechen = L.layerGroup().addTo(karte);
+const ebeneBekannte = L.layerGroup().addTo(karte);
+
+function farbe(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function m(x) { return x == null ? "–" : x.toLocaleString("de") + " m"; }
+
+function popup(p, sichtbar) {
+  const kollision = Object.entries(p.erste_kollision_m || {}).map(([s, d]) => `${s} (nach ${d} m)`).join(", ");
+  return `<b>Kandidat ${p.id}</b> – ${p.hoehe_m} m ü. M.<table>
+    <tr><td>Abflug frei</td><td>${p.sektoren_frei.join(", ") || "–"}</td></tr>
+    <tr><td>blockiert</td><td>${kollision || "–"}</td></tr>
+    <tr><td>Hangneigung</td><td>${p.neigung_grad.toLocaleString("de")}°</td></tr>
+    <tr><td>Ausrichtung</td><td>${p.ausrichtung_grad}°</td></tr>
+    <tr><td>Startfläche</td><td>${p.flaeche_m2.toLocaleString("de")} m²</td></tr>
+    <tr><td>nächster Weg</td><td>${m(p.weg_abstand_m)}</td></tr></table>
+    ${p.wald_hinweis ? "<p>⚠ Laut Realnutzungskarte 2005 Wald; im Luftbild 2023 offen. Vor Ort prüfen.</p>" : ""}
+    <p class="klein">Nur ein Kandidat – nicht geprüft, nicht erlaubt.</p>`;
+}
+
+function aktualisieren() {
+  try { localStorage.setItem("sektoren", JSON.stringify([...gewaehlt])); } catch (e) {}
+  rose.querySelectorAll("path").forEach(p => p.classList.toggle("an", gewaehlt.has(p.dataset.sektor)));
+  rose.querySelectorAll("text").forEach(t => t.classList.toggle("an", gewaehlt.has(t.textContent)));
+  const nurFrei = document.getElementById("nurFrei").checked;
+  const wegAn = document.getElementById("wegAn").checked;
+  const wegMax = Number(document.getElementById("wegMax").value);
+  const ohneWald = document.getElementById("ohneWald").checked;
+
+  ebeneKandidaten.clearLayers();
+  const sichtbar = new Set();
+  let anzahl = 0;
+  for (const f of kandidaten) {
+    const p = f.properties;
+    const frei = p.sektoren_frei.some(s => gewaehlt.has(s));
+    const blockiert = p.sektoren_blockiert.some(s => gewaehlt.has(s));
+    if (!frei && (nurFrei || !blockiert)) continue;
+    if (wegAn && (p.weg_abstand_m == null || p.weg_abstand_m > wegMax)) continue;
+    if (ohneWald && p.wald_hinweis) continue;
+    anzahl++;
+    sichtbar.add(p.id);
+    const [lon, lat] = f.geometry.coordinates;
+    L.circleMarker([lat, lon], {
+      radius: frei ? 6 : 4, weight: 1.5, color: "#fff",
+      fillColor: frei ? farbe("--frei") : farbe("--blockiert"), fillOpacity: 0.95
+    }).bindPopup(popup(p)).addTo(ebeneKandidaten);
+  }
+  document.getElementById("anzahl").textContent =
+    gewaehlt.size ? `${anzahl.toLocaleString("de")} Kandidaten angezeigt` : "Bitte mindestens eine Startrichtung wählen.";
+
+  ebeneFlaechen.clearLayers();
+  if (flaechen && document.getElementById("flaechen").checked) {
+    L.geoJSON(flaechen, {
+      filter: f => gewaehlt.has(f.properties.sektor) && f.properties.kandidaten.some(id => sichtbar.has(id)),
+      style: { color: farbe("--flaeche"), weight: 1, fillOpacity: 0.25 },
+      interactive: false
+    }).addTo(ebeneFlaechen);
+    ebeneKandidaten.eachLayer(l => l.bringToFront());
+  }
+  if (document.getElementById("bekannte").checked) karte.addLayer(ebeneBekannte); else karte.removeLayer(ebeneBekannte);
+}
+["nurFrei", "wegAn", "wegMax", "ohneWald", "flaechen", "bekannte"].forEach(id =>
+  document.getElementById(id).addEventListener("input", aktualisieren));
+
+Promise.all([
+  fetch("daten/kandidaten.geojson").then(r => r.json()),
+  fetch("daten/kandidaten_info.json").then(r => r.json()),
+  fetch("daten/paraglidingearth.geojson").then(r => r.json()).catch(() => null),
+]).then(([k, i, pge]) => {
+  kandidaten = k.features; info = i;
+  document.getElementById("wegMax").value = i.einstellungen.eigenschaften.weg_max_m;
+  const s = i.einstellungen;
+  document.getElementById("info").innerHTML =
+    `Gebiet: ${i.gebiet}, Stand ${i.stand}. ${i.anzahl_kandidaten.toLocaleString("de")} Kandidaten, ` +
+    `davon ${i.anzahl_mit_freiem_abflug.toLocaleString("de")} mit freiem Abflug in mindestens einer Richtung.<br>` +
+    `Kriterien: Neigung ${s.startflaeche.neigung_min_grad}–${s.startflaeche.neigung_max_grad}°, ` +
+    `Ausrichtung ±${s.startflaeche.ausrichtung_toleranz_grad}°, Fläche ab ${s.startflaeche.mindestflaeche_m2} m², ` +
+    `Startbahn ${s.startbahn.radius_m} m, Abflug ${s.hindernisse.laenge_m} m mit Gleitzahl ${s.hindernisse.gleitzahl}.<br>` +
+    `Daten: ${i.quellen.join("; ")}. Gelände- und Oberflächenmodell sind von 2004/05 – ` +
+    `Bäume, die seither gewachsen sind, fehlen.`;
+  if (pge) {
+    L.geoJSON(pge, {
+      pointToLayer: (f, ll) => L.marker(ll, { icon: L.divIcon({ className: "", iconSize: [14, 14],
+        html: '<div style="width:14px;height:14px;background:#d6336c;border:2px solid #fff;border-radius:2px;box-shadow:0 0 0 1px #0006"></div>' }) }),
+      onEachFeature: (f, l) => l.bindPopup(`<b>${f.properties.name}</b><br>bekannter Startplatz, ` +
+        `${f.properties.takeoff_altitude || "?"} m<br>${f.properties.takeoff_description || ""}<br>` +
+        `<a href="${f.properties.pge_link}" target="_blank" rel="noopener">ParaglidingEarth</a>`)
+    }).addTo(ebeneBekannte);
+    karte.attributionControl.addAttribution("Bekannte Startplätze: © ParaglidingEarth-Mitwirkende (CC BY-SA 3.0)");
+  }
+  aktualisieren();
+  fetch("daten/startflaechen.geojson").then(r => r.json()).then(f => { flaechen = f; aktualisieren(); });
+}).catch(err => {
+  document.getElementById("anzahl").textContent = "Daten konnten nicht geladen werden: " + err;
+});
+</script>
+</body>
+</html>

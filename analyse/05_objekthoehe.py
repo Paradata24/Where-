@@ -1,6 +1,6 @@
-"""Schritt 4: Objekthöhe (DOM minus DGM) berechnen und prüfen.
+"""Schritt 5: Objekthöhe (DOM minus DGM) berechnen und prüfen.
 
-Eingabe:  rohdaten/dgm_2_5m.tif, rohdaten/dom_2_5m.tif, daten/osm/wald.geojson
+Eingabe:  rohdaten/dgm_2_5m.tif, rohdaten/dom_2_5m.tif, rohdaten/realnutzung_2_5m.tif
 Ausgabe:  rohdaten/objekthoehe_2_5m.tif (nicht im Repository),
           ergebnisse/objekthoehe_zusammenfassung.json,
           docs/vorschau/objekthoehe.png
@@ -8,13 +8,11 @@ Ausgabe:  rohdaten/objekthoehe_2_5m.tif (nicht im Repository),
 
 import json
 
-import geopandas as gpd
 import matplotlib
 import numpy as np
 import rasterio
-from rasterio.features import rasterize
 
-from gemeinsam import DATEN, ERGEBNISSE, PROJEKT, ROHDATEN, einstellungen
+from gemeinsam import ERGEBNISSE, PROJEKT, ROHDATEN, einstellungen
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -51,22 +49,17 @@ def main():
     perz = {f"p{p}": round(float(np.percentile(hoehen_baum, p)), 1) for p in (10, 25, 50, 75, 90, 99)} \
         if hoehen_baum.size else {}
 
-    # Vergleich mit Wald aus OpenStreetMap
+    # Vergleich mit dem Wald der Realnutzungskarte (Schritt 4)
     vergleich = {}
-    wald_pfad = DATEN / "osm" / "wald.geojson"
-    if wald_pfad.exists():
-        wald = gpd.read_file(wald_pfad).to_crs(crs)
-        wald = wald[wald.geometry.type.isin(["Polygon", "MultiPolygon"])]
-        if "landuse" in wald or "natural" in wald:
-            ist_wald = (wald.get("landuse") == "forest") | (wald.get("natural") == "wood")
-            wald = wald[ist_wald.fillna(False)]
-        osm_wald = rasterize(((g, 1) for g in wald.geometry), out_shape=dgm.shape,
-                             transform=transform, fill=0, dtype="uint8").astype(bool) & gueltig
+    rn_pfad = ROHDATEN / "realnutzung_2_5m.tif"
+    if rn_pfad.exists():
+        with rasterio.open(rn_pfad) as ds:
+            karte_wald = np.isin(ds.read(1), e["realnutzung"]["wald"]) & gueltig
         vergleich = {
-            "osm_wald_ha": round(osm_wald.sum() * zelle / 1e4, 1),
-            "anteil_osm_wald_mit_objekt_ueber_grenze": round(float((baum & osm_wald).sum() / max(osm_wald.sum(), 1)), 3),
-            "objekt_ueber_grenze_ausserhalb_osm_wald_ha": round(float((baum & ~osm_wald).sum() * zelle / 1e4), 1),
-            "median_objekthoehe_im_osm_wald_m": round(float(np.nanmedian(ndom[osm_wald])), 1) if osm_wald.any() else None,
+            "karte_wald_ha": round(karte_wald.sum() * zelle / 1e4, 1),
+            "anteil_karte_wald_mit_objekt_ueber_grenze": round(float((baum & karte_wald).sum() / max(karte_wald.sum(), 1)), 3),
+            "objekt_ueber_grenze_ausserhalb_karte_wald_ha": round(float((baum & ~karte_wald).sum() * zelle / 1e4), 1),
+            "median_objekthoehe_im_karte_wald_m": round(float(np.nanmedian(ndom[karte_wald])), 1) if karte_wald.any() else None,
         }
 
     zus = {
@@ -82,7 +75,7 @@ def main():
         "zellen_unplausibel_hoch": int(zu_hoch.sum()),
         "zellen_negativ": int(negativ.sum()),
         "anteil_genau_null": round(float((np.abs(v) < 0.01).sum() / n), 3),
-        "vergleich_osm_wald": vergleich,
+        "vergleich_realnutzung_wald": vergleich,
     }
     ERGEBNISSE.mkdir(exist_ok=True)
     (ERGEBNISSE / "objekthoehe_zusammenfassung.json").write_text(

@@ -2,6 +2,8 @@
 #
 # Alle einstellbaren Werte stehen hier. Die Skripte in analyse/ lesen nur diese
 # Datei, damit nichts fest im Code steht.
+# Grundlage der Kriterien: E. Egger, Masterarbeit TU Graz 2022, Kap. 2.2 und 8.2
+# (PDF: docs/vorschau/74383.pdf). Seitenangaben beziehen sich auf diese Arbeit.
 
 [testgebiet]
 name = "Rittner Horn"
@@ -12,6 +14,9 @@ mitte_x = 688460
 mitte_y = 5165330
 # Kantenlänge des quadratischen Testgebiets in Metern (6 × 6 km)
 kantenlaenge_m = 6000
+# Zusätzlicher Rand, der mitgeladen wird, damit die Hindernisprüfung (500 m
+# Abflug) auch für Kandidaten am Rand des Testgebiets vollständig ist
+rand_m = 600
 
 [hoehenmodelle]
 # Web Coverage Service (WCS) der Provinz Bozen
@@ -22,9 +27,96 @@ dom_layer = "p_bz-Elevation:DigitalElevationModel-2.5m"
 aufloesung_m = 2.5
 
 [orthofoto]
-# Kartendienst (WMS) der Provinz Bozen – nur als Hintergrund zur Kontrolle
+# Kartendienst (WMS) der Provinz Bozen
 wms_url = "https://geoservices.buergernetz.bz.it/mapproxy/ows"
+# Farbbild – nur als Hintergrund auf der Karte
 layer = "p_bz-Orthoimagery:Aerial-2023-RGB"
+# Infrarotbild (CIR) – zur Prüfung, ob heute Vegetation oder kahler Boden ist
+cir_layer = "p_bz-Orthoimagery:Aerial-2023-CIR"
+# Auflösung, mit der das Infrarotbild geladen wird (m), und Kachelgröße in Bildpunkten
+cir_aufloesung_m = 1.0
+cir_kachel_px = 2000
+
+[realnutzung]
+# Realnutzungskarte 1:10.000 der Provinz (WFS, CC0, Stand 2005)
+wfs_url = "https://geoservices1.civis.bz.it/geoserver/p_bz-LandUse/ows"
+layer = "p_bz-LandUse:RealLandUseMap-Polygons"
+# Klassen (Feld CODE), auf denen gestartet werden kann.
+# Egger: dauerhafte Wiesen/Weiden und offener Boden (S. 44).
+# 32300 Grasland, 32400 Wiese/Weide/Zwergstrauchgesellschaften
+geeignet = [32300, 32400]
+# Klassen, die als Wald gelten (für den Hinweis „laut Karte 2005 Wald, heute offen?“)
+wald = [31500]
+
+[untergrund]
+# Infrarot-Prüfung: Vegetationsindex aus dem CIR-Bild,
+# (Infrarot − Rot) / (Infrarot + Rot). Werte darunter gelten als kahl
+# (Fels, Geröll, Straße, Gebäude) und sind nicht startbar.
+vegetation_ab = 0.08
+# Test 04.10.2026 am Rittner Horn (Median je Klasse): Grasland 0,20,
+# Wald 0,43, Krummholz 0,40, Lockermaterial 0,13, Fels 0,09.
+# Zellen, die laut Realnutzungskarte 2005 Wald sind, aber keine Bäume haben
+# (Objekthöhe unter baum_ab_m) und im Infrarotbild 2023 wie Wiese aussehen
+# (Index unter wiese_bis), trotzdem als Kandidat zulassen – mit Hinweis.
+wald_ohne_baeume_zulassen = true
+wiese_bis = 0.30
+
+[objekthoehe]
+# Ab dieser Höhe (DOM minus DGM) gilt eine Zelle als Baum/Objekt
+baum_ab_m = 3.0
+# Höhen über diesem Wert werden als vermutliche Datenfehler gemeldet
+unplausibel_ab_m = 60.0
+# Negative Werte unter dieser Grenze werden als Datenfehler gemeldet
+negativ_grenze_m = -1.0
+
+[startflaeche]
+# Hangneigung in Grad (Egger S. 10 und 44: 7° < Neigung < 30°)
+neigung_min_grad = 7.0
+neigung_max_grad = 30.0
+# Erlaubte Abweichung der Hangausrichtung von der Startrichtung (Egger: ±45°)
+ausrichtung_toleranz_grad = 45.0
+# Mindestfläche einer zusammenhängenden Startfläche in m² (Egger S. 10)
+mindestflaeche_m2 = 112.0
+# Startrichtungen: Anzahl Sektoren (Egger: 8; wir: 16 = N, NNO, NO, …)
+sektoren = 16
+
+[startbahn]
+# „Startbahn“ als Mehrheitsfilter (Egger S. 44): Kreisbogen in Startrichtung
+radius_m = 30.0
+oeffnung_grad = 90.0
+# Mindestanteil geeigneter Zellen im Kreisbogen (Mehrheit = mehr als 0,5)
+mindestanteil = 0.5
+
+[startpunkt]
+# Kandidaten, die näher beieinander liegen, werden zusammengefasst (Egger S. 46)
+zusammenfassen_m = 20.0
+
+[hindernisse]
+# Rasterbasierte Prüfung im Dreieck vor dem Startpunkt (Egger S. 48–52)
+laenge_m = 500.0
+oeffnung_grad = 40.0
+gleitzahl = 7.0
+# Abstand der Prüfpunkte innerhalb einer Startfläche (m). Egger prüft nur den
+# höchsten Punkt jeder Fläche; der liegt aber oft auf einer flachen Kuppe, von
+# der die Gleitlinie nicht frei ist. Wir prüfen zusätzlich Punkte in diesem
+# Raster und nehmen den höchsten Punkt mit freiem Abflug.
+pruefraster_m = 10.0
+# Die Prüfung beginnt erst in dieser Entfernung vom Startpunkt (m). Davor liegt
+# die Startbahn, auf der man noch läuft; sie wird schon vom Mehrheitsfilter
+# geprüft. Egger: 0 (Prüfung ab Startpunkt).
+pruefung_ab_m = 0.0
+# Zusätzlicher Sicherheitsabstand über Gelände/Hindernis in m (Egger: 0)
+sicherheitsabstand_m = 0.0
+# Objekthöhen (DOM − DGM) darunter werden als Messrauschen ignoriert
+objekt_ab_m = 1.0
+# Angenommene Höhe über Grund von Leitungen aus OpenStreetMap (m)
+seilbahn_hoehe_m = 15.0
+stromleitung_hoehe_m = 20.0
+
+[eigenschaften]
+# Der Abstand zum nächsten Weg wird nur gespeichert, nicht ausgeschlossen.
+# Egger: höchstens 50 m. Dieser Wert ist auf der Website als Filter voreingestellt.
+weg_max_m = 50.0
 
 [osm]
 # Overpass-Server (Spiegel mit denselben OSM-Daten), werden der Reihe nach versucht
@@ -37,14 +129,6 @@ user_agent = "Startplatz-Finder-Suedtirol/0.1 (https://github.com/paradata24/whe
 # Fertiger OSM-Auszug für Nordost-Italien (enthält Südtirol). Ausweichquelle,
 # falls die Overpass-Server überlastet sind, und Grundlage für Phase 3.
 geofabrik_url = "https://download.geofabrik.de/europe/italy/nord-est-latest.osm.pbf"
-
-[objekthoehe]
-# Ab dieser Höhe (DOM minus DGM) gilt eine Zelle als Baum/Objekt
-baum_ab_m = 3.0
-# Höhen über diesem Wert werden als vermutliche Datenfehler gemeldet
-unplausibel_ab_m = 60.0
-# Negative Werte unter dieser Grenze werden als Datenfehler gemeldet
-negativ_grenze_m = -1.0
 
 [gesamtgebiet]
 # Für die spätere Berechnung ganz Südtirols (Phase 3): Die Höhenmodelle werden

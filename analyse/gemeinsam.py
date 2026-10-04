@@ -17,21 +17,24 @@ def einstellungen():
         return tomllib.load(f)
 
 
-def testgebiet_utm(e=None):
-    """Rechteck des Testgebiets in EPSG:25832: (west, sued, ost, nord)."""
+def testgebiet_utm(e=None, mit_rand=False):
+    """Rechteck des Testgebiets in EPSG:25832: (west, sued, ost, nord).
+
+    mit_rand=True: um den Rand aus den Einstellungen vergrößert (Berechnungsgebiet).
+    """
     e = e or einstellungen()
     t = e["testgebiet"]
-    h = t["kantenlaenge_m"] / 2
+    h = t["kantenlaenge_m"] / 2 + (t["rand_m"] if mit_rand else 0)
     return (t["mitte_x"] - h, t["mitte_y"] - h, t["mitte_x"] + h, t["mitte_y"] + h)
 
 
-def testgebiet_wgs84(e=None):
+def testgebiet_wgs84(e=None, mit_rand=False):
     """Rechteck des Testgebiets in Längen-/Breitengrad: (west, sued, ost, nord).
 
     Etwas größer als das UTM-Rechteck, damit es dieses vollständig umschließt.
     """
     e = e or einstellungen()
-    w, s, o, n = testgebiet_utm(e)
+    w, s, o, n = testgebiet_utm(e, mit_rand)
     t = Transformer.from_crs(e["testgebiet"]["crs"], "EPSG:4326", always_xy=True)
     ecken = [t.transform(x, y) for x in (w, o) for y in (s, n)]
     lons = [p[0] for p in ecken]

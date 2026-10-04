@@ -1,8 +1,9 @@
 """Schritt 2: OpenStreetMap-Daten für das Testgebiet laden.
 
 Lädt über die Overpass-Schnittstelle: Wege und Straßen, Seilbahnen und
-Materialseilbahnen, Stromleitungen, Wald, Fels und Geröll sowie bekannte
-Gleitschirm-Startplätze. Ergebnis: je eine GeoJSON-Datei in daten/osm/.
+Materialseilbahnen, Stromleitungen sowie bekannte Gleitschirm-Startplätze.
+Der Untergrund (Wald, Fels, Wiese) kommt NICHT aus OSM, sondern aus der
+Realnutzungskarte und dem Infrarot-Orthofoto der Provinz (Schritt 4). Ergebnis: je eine GeoJSON-Datei in daten/osm/.
 Lizenz der Daten: ODbL, © OpenStreetMap-Mitwirkende.
 """
 
@@ -24,16 +25,6 @@ THEMEN = {
     "stromleitungen": [
         'way["power"~"^(line|minor_line|cable)$"]',
         'node["power"~"^(tower|pole)$"]',
-    ],
-    "wald": [
-        'way["landuse"="forest"]', 'relation["landuse"="forest"]',
-        'way["natural"="wood"]', 'relation["natural"="wood"]',
-        'way["natural"~"^(scrub|heath)$"]', 'relation["natural"~"^(scrub|heath)$"]',
-    ],
-    "fels_geroell": [
-        'way["natural"~"^(bare_rock|scree|shingle|cliff|rock|stone)$"]',
-        'relation["natural"~"^(bare_rock|scree|shingle)$"]',
-        'node["natural"~"^(rock|stone)$"]',
     ],
     "startplaetze_osm": [
         'nwr["sport"="free_flying"]',
@@ -100,12 +91,12 @@ def geometrie(el):
 
 def main():
     e = einstellungen()
-    w, s, o, n = testgebiet_wgs84(e)
+    w, s, o, n = testgebiet_wgs84(e, mit_rand=True)
     bbox = f"({s:.6f},{w:.6f},{n:.6f},{o:.6f})"
     ziel = DATEN / "osm"
     ziel.mkdir(parents=True, exist_ok=True)
     stand = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    # Optional: nur bestimmte Themen laden, z. B. "python 02_osm_laden.py wald"
+    # Optional: nur bestimmte Themen laden, z. B. "python 02_osm_laden.py seilbahnen"
     auswahl = sys.argv[1:] or list(THEMEN)
     ok = True
     for name in auswahl:

@@ -1,0 +1,62 @@
+# Phase 2: Berechnet die Startplatz-Kandidaten für das Testgebiet und speichert
+# die Ergebnisse (ergebnisse/ und docs/daten/) im Repository.
+# Starten: Reiter "Actions" → "Berechnung" → "Run workflow" → Zweig wählen → "Run workflow".
+name: Berechnung
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: berechnung-${{ github.ref }}
+
+jobs:
+  berechnen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: 1 – Höhenmodelle laden
+        working-directory: analyse
+        run: python 01_hoehenmodelle_laden.py
+      # OSM und ParaglidingEarth sind manchmal überlastet. Dann werden die
+      # bereits gespeicherten Dateien aus daten/ weiterverwendet.
+      - name: 2 – OpenStreetMap laden (Wege, Seilbahnen, Stromleitungen)
+        working-directory: analyse
+        continue-on-error: true
+        run: python 02_osm_laden.py
+      - name: 3 – Bekannte Startplätze laden
+        working-directory: analyse
+        continue-on-error: true
+        run: python 03_startplaetze_laden.py
+      - name: 4 – Untergrund laden (Realnutzungskarte, Infrarot-Orthofoto)
+        working-directory: analyse
+        run: python 04_untergrund_laden.py
+      - name: 5 – Objekthöhe prüfen
+        working-directory: analyse
+        run: python 05_objekthoehe.py
+      - name: 6 – Kandidaten berechnen
+        working-directory: analyse
+        run: python 06_kandidaten.py
+
+      - name: Ergebnisse speichern
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ergebnisse docs/daten docs/vorschau/objekthoehe.png daten
+          if git diff --cached --quiet; then
+            echo "Keine Änderungen an den Ergebnissen."
+          else
+            git commit -m "Ergebnisse neu berechnet (Workflow Berechnung, Lauf ${{ github.run_number }})"
+            git push
+          fi
+          echo "## Ergebnis" >> "$GITHUB_STEP_SUMMARY"
+          python -c "import json; i=json.load(open('ergebnisse/kandidaten_info.json')); print(f\"{i['anzahl_kandidaten']} Kandidaten, davon {i['anzahl_mit_freiem_abflug']} mit freiem Abflug\")" >> "$GITHUB_STEP_SUMMARY"
