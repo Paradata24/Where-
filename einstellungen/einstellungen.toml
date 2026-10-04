@@ -34,6 +34,9 @@ overpass_urls = [
   "https://overpass.kumi.systems/api/interpreter",
 ]
 user_agent = "Startplatz-Finder-Suedtirol/0.1 (https://github.com/paradata24/where-)"
+# Fertiger OSM-Auszug für Nordost-Italien (enthält Südtirol). Ausweichquelle,
+# falls die Overpass-Server überlastet sind, und Grundlage für Phase 3.
+geofabrik_url = "https://download.geofabrik.de/europe/italy/nord-est-latest.osm.pbf"
 
 [objekthoehe]
 # Ab dieser Höhe (DOM minus DGM) gilt eine Zelle als Baum/Objekt

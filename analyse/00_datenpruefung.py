@@ -111,20 +111,40 @@ def main():
             ergebnis, info = None, str(ex)[:150]
         alles_ok &= melden(ergebnis is not None, f"DGM 2,5 m, große Kachel {kante // 1000} × {kante // 1000} km", info)
 
-    # 4) OpenStreetMap über Overpass
-    abfrage = f'[out:json][timeout:60];node["sport"="free_flying"](46.3,10.4,47.1,12.5);out count;'
+    # 4) OpenStreetMap: Overpass (Abfrage) oder Geofabrik (fertiger Auszug).
+    #    Eine der beiden Quellen genügt. Overpass ist oft überlastet.
+    osm_ok = False
+    abfrage = '[out:json][timeout:60];node["sport"="free_flying"](46.6,11.4,46.7,11.6);out count;'
     for o_url in e["osm"]["overpass_urls"]:
-        try:
-            r = requests.post(o_url, data={"data": abfrage}, timeout=120,
-                              headers={"User-Agent": e["osm"]["user_agent"]})
-            ok = r.status_code == 200 and "elements" in r.text
-            melden(ok, f"OpenStreetMap Overpass ({o_url.split('/')[2]})", f"HTTP {r.status_code}")
-            if ok:
-                break
-        except requests.RequestException as ex:
-            melden(False, f"OpenStreetMap Overpass ({o_url.split('/')[2]})", str(ex)[:150])
-    else:
-        alles_ok = False
+        name = f"OpenStreetMap Overpass ({o_url.split('/')[2]})"
+        details = ""
+        for versuch in range(3):
+            try:
+                r = requests.post(o_url, data={"data": abfrage}, timeout=120,
+                                  headers={"User-Agent": e["osm"]["user_agent"]})
+                details = f"HTTP {r.status_code}"
+                if r.status_code == 200 and "elements" in r.text:
+                    osm_ok = True
+                    break
+            except requests.RequestException as ex:
+                details = str(ex)[:150]
+            time.sleep(10 * (versuch + 1))
+        melden(osm_ok, name, details + (f" (nach {versuch + 1} Versuch(en))" if osm_ok else ", 3 Versuche"))
+        if osm_ok:
+            break
+
+    g_url = e["osm"]["geofabrik_url"]
+    try:
+        r = requests.head(g_url, timeout=60, allow_redirects=True,
+                          headers={"User-Agent": e["osm"]["user_agent"]})
+        groesse = int(r.headers.get("Content-Length", 0)) / 1e6
+        g_ok = r.status_code == 200 and groesse > 0
+        melden(g_ok, f"OpenStreetMap Geofabrik ({g_url.rsplit('/', 1)[1]})",
+               f"HTTP {r.status_code}, {groesse:.0f} MB, Stand {r.headers.get('Last-Modified', '?')}")
+        osm_ok |= g_ok
+    except requests.RequestException as ex:
+        melden(False, "OpenStreetMap Geofabrik", str(ex)[:150])
+    alles_ok &= osm_ok
 
     bericht = "## Datenprüfung Startplatz-Finder\n\n| | Prüfung | Ergebnis |\n|---|---|---|\n"
     bericht += "\n".join(ZEILEN) + "\n"
