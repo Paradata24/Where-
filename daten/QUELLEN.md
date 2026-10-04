@@ -27,17 +27,50 @@ Stand der Recherche: 01.10.2026. Testgebiet: 6 × 6 km um das Rittner Horn
 **Achtung, Alter:** Der Waldstand im DOM ist rund 20 Jahre alt (Zuwachs, Schlägerungen,
 Sturm Vaia 2018). Das Gelände selbst ist dafür unproblematisch.
 
-**Erreichbarkeit (01.10.2026):** Der WCS-Server `geoservices9.civis.bz.it` war aus der
-Cloud-Umgebung nicht erreichbar. Er antwortete mit „HTTP 503 Service Unavailable“ oder
-ohne Antwort. DGM und DOM konnten deshalb noch nicht geladen werden.
+**Erreichbarkeit (01.10.2026):** Der WCS-Server war aus der Cloud-Umgebung nicht erreichbar
+(„HTTP 503 Service Unavailable“).
+
+**Erreichbarkeit (04.10.2026, Phase 1):** Der WCS-Server funktioniert. Getestet mit
+`analyse/00_datenpruefung.py` (auch als GitHub-Actions-Workflow „Datenprüfung“):
+- Probe 1 × 1 km am Rittner Horn: DGM und DOM je 400 × 400 Zellen, 2,5 m, EPSG:25832, 100 % gültig.
+- Große Kachel 20 × 20 km: 8000 × 8000 Zellen, 268 MB (unkomprimiertes GeoTIFF, float32), 1–4 Minuten.
+- Kein Zugangsschlüssel nötig (`Fees: NONE`, `AccessConstraints: NONE`).
+- Es gibt **keinen** ZIP-/Kachel-Download auf dem Open-Data-Portal; der WCS ist der offizielle Bezugsweg.
+- Ganz Südtirol (Umriss-Rechteck ca. 155 × 105 km) ≈ 40 Kacheln à 20 km je Modell
+  → ca. 11 GB je Modell unkomprimiert. Darum Verarbeitung Kachel für Kachel, Rohdaten danach löschen.
 
 **Weitere Höhenmodelle, die gefunden wurden (noch nicht verwendet):**
 - DGM 0,5 m / DOM 0,5 m (`p_bz-Elevation:DigitalTerrainModel-0.5m`, `…DigitalElevationModel-0.5m`),
   gleicher WCS, CC0, laut Metadaten nur für die *besiedelten Gebiete* Südtirols (veröffentlicht 2013).
-  Ob das Rittner Horn abgedeckt ist, muss noch geprüft werden.
+  Geprüft am 04.10.2026: Der Gipfelbereich des Rittner Horns ist **nicht** abgedeckt (nur Leerwerte).
+- DGM/DOM 0,2 m Etschtal 2024 (`…EtschAdige-0.2m-2024`): nur Etschtal, aktueller Waldstand.
 - DOM Gletscher 0,5 m (2016/17 und 2023): nur Gletscherflächen, für uns nicht relevant.
 
-## 2. Orthofoto (Hintergrund zur Kontrolle)
+## 2. Untergrund: Realnutzungskarte und Infrarot-Orthofoto
+
+Entscheidung vom 04.10.2026: Der Untergrund (Wiese, Wald, Fels, Geröll) kommt **nicht** aus
+OpenStreetMap, sondern aus Daten der Provinz. Skript: `analyse/04_untergrund_laden.py`.
+
+**Realnutzungskarte 1:10.000 (Flächen)**
+- Dienst (WFS 2.0): https://geoservices1.civis.bz.it/geoserver/p_bz-LandUse/ows,
+  Layer `p_bz-LandUse:RealLandUseMap-Polygons`, Felder `CODE`, `NAME_DE`, `NAME_IT`.
+- Lizenz: **CC0 1.0**. Erstellt/veröffentlicht 06.10.2005, keine Aktualisierung geplant.
+  Entstanden durch Stereo-Auswertung von Schwarz-Weiß- und teils Infrarot-Luftbildern.
+- Metadaten: https://data.civis.bz.it/de/dataset/carta-delluso-del-suolo-1-10-000
+- Klassen am Rittner Horn (6 × 6 km + Rand): Wald 2832 ha, Grasland 1587 ha, Krummholz 426 ha,
+  vegetationsloses Lockermaterial 128 ha, Ackerland 105 ha, Feuchtflächen 94 ha, Fels 8 ha u. a.
+- Als startbar gelten (einstellbar): 32300 Grasland, 32400 Wiese/Weide/Zwergstrauchgesellschaften.
+- Landesweit 81 234 Flächen (Test 04.10.2026).
+
+**Orthofoto 2023 Infrarot (CIR)**
+- Layer `p_bz-Orthoimagery:Aerial-2023-CIR`, WMS https://geoservices.buergernetz.bz.it/mapproxy/ows,
+  20 cm, Lizenz **CC BY 4.0** („Autonome Provinz Bozen – Südtirol“).
+- Geladen mit 1 m Auflösung in Kacheln von 2000 × 2000 Bildpunkten (größere Bilder lehnt der Dienst ab).
+- Daraus Vegetationsindex (Infrarot − Rot) / (Infrarot + Rot), gemittelt auf 2,5 m.
+  Median je Klasse am Rittner Horn: Grasland 0,20, Wald 0,43, Krummholz 0,40,
+  Lockermaterial 0,13, Fels 0,09. Unter 0,08 gilt eine Zelle als kahl.
+
+## 2a. Orthofoto (Hintergrund zur Kontrolle)
 
 - Aktuellstes landesweites Orthofoto: **Orthofoto 2023**, 20 cm Auflösung, Layer
   `p_bz-Orthoimagery:Aerial-2023-RGB` (zusätzlich Infrarot: `p_bz-Orthoimagery:Aerial-2023-CIR`).
@@ -55,12 +88,11 @@ ohne Antwort. DGM und DOM konnten deshalb noch nicht geladen werden.
 - Abfrage über Overpass API (https://overpass-api.de/api/interpreter), Skript `analyse/02_osm_laden.py`.
 - Lizenz: **ODbL 1.0**. Namensnennung: „© OpenStreetMap-Mitwirkende“.
 - Abrufdatum: steht in jeder Datei im Feld `abgerufen`.
+- Verwendet nur für Hindernisse und Wege (nicht für den Untergrund). Abfragegebiet: Testgebiet plus 600 m Rand.
 - Dateien in `daten/osm/`:
   - `wege_strassen.geojson` – alle `highway=*`
   - `seilbahnen.geojson` – alle `aerialway=*` (inkl. Materialseilbahnen `aerialway=goods`)
   - `stromleitungen.geojson` – `power=line|minor_line|cable`, Masten `power=tower|pole`
-  - `wald.geojson` – `landuse=forest`, `natural=wood`, außerdem `natural=scrub|heath` (Gebüsch)
-  - `fels_geroell.geojson` – `natural=bare_rock|scree|shingle|cliff|rock|stone`
   - `startplaetze_osm.geojson` – `sport=free_flying` und `free_flying:*`
 
 ## 4. Bekannte Startplätze

@@ -42,12 +42,13 @@ Eine neue, statische Website („Startplatz-Finder Südtirol"), die auf einer Ka
   - Das Gelände ist dafür unproblematisch.
   - Der Waldstand kann aber stark veraltet sein (Zuwachs, Schlägerungen, Sturm Vaia 2018). Das muss bei der Baumerkennung berücksichtigt werden.
 - **Aktuelle Orthofotos der Provinz (WMS):** als Hintergrund für die Kontrolle.
-- **OpenStreetMap:** Wege, Straßen, Seilbahnen, Materialseilbahnen, Stromleitungen, Fels/Geröll, Wald.
+- **Untergrund (Entscheidung 04.10.2026):** nicht aus OpenStreetMap, sondern aus der **Realnutzungskarte 1:10.000** der Provinz (WFS, CC0, Stand 2005), geprüft mit dem **Infrarot-Orthofoto 2023** (Vegetationsindex) und der Objekthöhe (DOM minus DGM).
+- **OpenStreetMap:** nur Wege, Straßen, Seilbahnen, Materialseilbahnen, Stromleitungen.
 - **Bekannte Startplätze zum Abgleich:** DHV-Geländedatenbank, paraglidingearth.com, OSM (`sport=free_flying`).
 
 ## Fachliche Grundlage
 
-Die Methode orientiert sich an der Masterarbeit von Elisabeth Egger, „Investigation of routing possibilities for Hike and Fly within paragliding", TU Graz 2022.
+Die Methode orientiert sich an der Masterarbeit von Elisabeth Egger, „Investigation of routing possibilities for Hike and Fly within paragliding", TU Graz 2022 (PDF: `docs/vorschau/74383.pdf`).
 
 Ihre Kriterien gelten als Startwerte. **Alle Werte müssen später einstellbar sein** (zentrale Einstellungsdatei, nichts fest im Code).
 
@@ -56,7 +57,7 @@ Ihre Kriterien gelten als Startwerte. **Alle Werte müssen später einstellbar s
 - **Untergrund:** nur Wiese, Weide, offener Boden. Kein Fels, Geröll, Wald, Gebüsch, Wasser, Gebäude.
 - **Mindestfläche:** 112 m².
 - **„Startbahn":** In einem 90°-Kreisbogen mit 30 m Radius in Startrichtung muss die Mehrheit der Zellen geeignet sein.
-- **Startpunkt:** Pro geeigneter Fläche wird der höchste Punkt bestimmt.
+- **Startpunkt:** Pro geeigneter Fläche wird der höchste Punkt bestimmt. Abweichung von Egger (04.10.2026): Innerhalb jeder Fläche werden Punkte im 10-m-Raster auf freien Abflug geprüft; Startpunkt ist der höchste Punkt *mit* freiem Abflug. Grund: Der höchste Punkt liegt oft auf einer flachen Kuppe, von der die Gleitlinie nie frei ist.
 - **Zusammenfassen:** Kandidaten näher als 20 m zueinander werden zusammengefasst.
 - **Hindernisprüfung:**
   - Vom Startpunkt aus wird ein dreieckiger Korridor in Startrichtung geprüft (500 m lang, 40° Öffnung).

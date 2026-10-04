@@ -1,4 +1,4 @@
-"""Schritt 1: DGM und DOM (2,5 m) der Provinz Bozen für das Testgebiet laden.
+"""Schritt 1: DGM und DOM (2,5 m) der Provinz Bozen für das Testgebiet (mit Rand) laden.
 
 Quelle: WCS der Autonomen Provinz Bozen (siehe daten/QUELLEN.md).
 Ergebnis: rohdaten/dgm_2_5m.tif und rohdaten/dom_2_5m.tif (nicht im Repository).
@@ -14,7 +14,7 @@ from gemeinsam import ROHDATEN, einstellungen, testgebiet_utm
 
 def coverage_laden(e, layer, ziel):
     h = e["hoehenmodelle"]
-    w, s, o, n = testgebiet_utm(e)
+    w, s, o, n = testgebiet_utm(e, mit_rand=True)
     # GeoServer schreibt bei WCS 2.0 "__" statt ":" in der Coverage-ID
     ids = [layer.replace(":", "__"), layer]
     fehler = []

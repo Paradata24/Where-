@@ -1,0 +1,25 @@
+# Phase 1: Prüft, ob die Datenquellen von GitHub Actions aus erreichbar sind.
+# Starten: Reiter "Actions" → "Datenprüfung" → "Run workflow".
+name: Datenprüfung
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/datenpruefung.yml"
+      - "analyse/00_datenpruefung.py"
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Datenquellen prüfen
+        working-directory: analyse
+        run: python 00_datenpruefung.py
