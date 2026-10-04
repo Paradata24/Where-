@@ -1,7 +1,8 @@
-"""Schritt 1: DGM und DOM (2,5 m) der Provinz Bozen für das Testgebiet (mit Rand) laden.
+"""Schritt 1: DGM und DOM (2,5 m) der Provinz Bozen je Gebiet (mit Rand) laden.
 
 Quelle: WCS der Autonomen Provinz Bozen (siehe daten/QUELLEN.md).
-Ergebnis: rohdaten/dgm_2_5m.tif und rohdaten/dom_2_5m.tif (nicht im Repository).
+Ergebnis: rohdaten/<gebiet>/dgm_2_5m.tif und dom_2_5m.tif (nicht im Repository).
+Aufruf: python 01_hoehenmodelle_laden.py [gebiet …]  (ohne Angabe: alle Gebiete)
 """
 
 import sys
@@ -9,12 +10,12 @@ import time
 
 import requests
 
-from gemeinsam import ROHDATEN, einstellungen, testgebiet_utm
+from gemeinsam import einstellungen, gebiete
 
 
-def coverage_laden(e, layer, ziel):
+def coverage_laden(e, gebiet, layer, ziel):
     h = e["hoehenmodelle"]
-    w, s, o, n = testgebiet_utm(e, mit_rand=True)
+    w, s, o, n = gebiet.utm(mit_rand=True)
     # GeoServer schreibt bei WCS 2.0 "__" statt ":" in der Coverage-ID
     ids = [layer.replace(":", "__"), layer]
     fehler = []
@@ -48,16 +49,17 @@ def coverage_laden(e, layer, ziel):
 
 def main():
     e = einstellungen()
-    ROHDATEN.mkdir(exist_ok=True)
     h = e["hoehenmodelle"]
     ok = True
-    for layer, datei in ((h["dgm_layer"], "dgm_2_5m.tif"), (h["dom_layer"], "dom_2_5m.tif")):
-        print(f"Lade {layer} …")
-        try:
-            coverage_laden(e, layer, ROHDATEN / datei)
-        except RuntimeError as ex:
-            print(ex)
-            ok = False
+    for gebiet in gebiete(e):
+        gebiet.rohdaten.mkdir(parents=True, exist_ok=True)
+        for layer, datei in ((h["dgm_layer"], "dgm_2_5m.tif"), (h["dom_layer"], "dom_2_5m.tif")):
+            print(f"{gebiet.name}: lade {layer} …")
+            try:
+                coverage_laden(e, gebiet, layer, gebiet.rohdaten / datei)
+            except RuntimeError as ex:
+                print(ex)
+                ok = False
     sys.exit(0 if ok else 1)
 
 

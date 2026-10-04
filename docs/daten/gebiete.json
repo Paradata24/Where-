@@ -1,0 +1,28 @@
+[
+ {
+  "kuerzel": "rittner_horn",
+  "name": "Ritten – Rittner Horn",
+  "grenzen": [
+   11.42098,
+   46.58723,
+   11.50171,
+   46.64286
+  ],
+  "stand": "2026-10-04",
+  "anzahl_kandidaten": 3197,
+  "anzahl_mit_freiem_abflug": 526
+ },
+ {
+  "kuerzel": "grosser_mittager",
+  "name": "Sarntal – Großer Mittager",
+  "grenzen": [
+   11.26983,
+   46.65649,
+   11.35052,
+   46.71202
+  ],
+  "stand": "2026-10-04",
+  "anzahl_kandidaten": 3531,
+  "anzahl_mit_freiem_abflug": 1298
+ }
+]

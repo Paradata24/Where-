@@ -1,15 +1,16 @@
-"""Schritt 4: Untergrund für das Testgebiet laden (Realnutzungskarte + Infrarot-Orthofoto).
+"""Schritt 4: Untergrund je Gebiet laden (Realnutzungskarte + Infrarot-Orthofoto).
 
 Quellen (siehe daten/QUELLEN.md):
 - Realnutzungskarte 1:10.000 der Provinz Bozen (WFS, CC0, Stand 2005)
 - Orthofoto 2023 Infrarot/CIR der Provinz Bozen (WMS, CC BY 4.0)
 
 Beide werden auf das Raster des Geländemodells (2,5 m) umgerechnet.
-Eingabe:  rohdaten/dgm_2_5m.tif (nur als Bezugsraster)
-Ausgabe:  rohdaten/realnutzung_2_5m.tif  – Klassencode (Feld CODE) je Zelle
-          rohdaten/vegetation_2_5m.tif   – Vegetationsindex aus dem CIR-Bild
-          rohdaten/realnutzung.geojson   – Flächen der Realnutzungskarte
+Eingabe:  rohdaten/<gebiet>/dgm_2_5m.tif (nur als Bezugsraster)
+Ausgabe:  rohdaten/<gebiet>/realnutzung_2_5m.tif  – Klassencode (Feld CODE) je Zelle
+          rohdaten/<gebiet>/vegetation_2_5m.tif   – Vegetationsindex aus dem CIR-Bild
+          rohdaten/<gebiet>/realnutzung.geojson   – Flächen der Realnutzungskarte
 (alles nicht im Repository)
+Aufruf: python 04_untergrund_laden.py [gebiet …]  (ohne Angabe: alle Gebiete)
 """
 
 import json
@@ -25,7 +26,7 @@ from rasterio.transform import from_origin
 from rasterio.warp import Resampling, reproject
 from shapely.geometry import shape
 
-from gemeinsam import ROHDATEN, einstellungen, testgebiet_utm
+from gemeinsam import einstellungen, gebiete
 
 # Die Bildkacheln haben keine Georeferenz; sie wird unten selbst gesetzt.
 warnings.filterwarnings("ignore", category=rasterio.errors.NotGeoreferencedWarning)
@@ -44,23 +45,23 @@ def abrufen(url, params, versuche=4):
     raise RuntimeError(f"{url} nicht erreichbar ({fehler})")
 
 
-def realnutzung_laden(e, bezug):
+def realnutzung_laden(e, gebiet, bezug):
     rn = e["realnutzung"]
-    w, s, o, n = testgebiet_utm(e, mit_rand=True)
+    w, s, o, n = gebiet.utm(mit_rand=True)
     r = abrufen(rn["wfs_url"], {
         "service": "WFS", "version": "2.0.0", "request": "GetFeature",
         "typeNames": rn["layer"], "outputFormat": "application/json",
         "srsName": "EPSG:25832", "bbox": f"{w},{s},{o},{n},EPSG:25832",
     })
     fc = r.json()
-    (ROHDATEN / "realnutzung.geojson").write_text(json.dumps(fc), encoding="utf-8")
+    (gebiet.rohdaten / "realnutzung.geojson").write_text(json.dumps(fc), encoding="utf-8")
     formen = [(shape(f["geometry"]), int(f["properties"]["CODE"]))
               for f in fc["features"] if f.get("geometry") and f["properties"].get("CODE")]
     print(f"  Realnutzungskarte: {len(formen)} Flächen")
     raster = rasterize(formen, out_shape=(bezug.height, bezug.width),
                        transform=bezug.transform, fill=0, dtype="int32")
     profil = bezug.profile | {"dtype": "int32", "nodata": 0, "compress": "deflate"}
-    with rasterio.open(ROHDATEN / "realnutzung_2_5m.tif", "w", **profil) as ds:
+    with rasterio.open(gebiet.rohdaten / "realnutzung_2_5m.tif", "w", **profil) as ds:
         ds.write(raster, 1)
     werte, anzahl = np.unique(raster, return_counts=True)
     zelle = abs(bezug.transform.a * bezug.transform.e)
@@ -70,13 +71,13 @@ def realnutzung_laden(e, bezug):
         print(f"    {wert:>6} {namen.get(int(wert), 'ohne Angabe'):<45} {a * zelle / 1e4:8.1f} ha")
 
 
-def cir_laden(e, bezug):
+def cir_laden(e, gebiet, bezug):
     """Lädt das Infrarotbild kachelweise und berechnet den Vegetationsindex."""
     of = e["orthofoto"]
     res = of["cir_aufloesung_m"]
     px = of["cir_kachel_px"]
     kante = px * res
-    w, s, o, n = testgebiet_utm(e, mit_rand=True)
+    w, s, o, n = gebiet.utm(mit_rand=True)
     nx = int(np.ceil((o - w) / kante))
     ny = int(np.ceil((n - s) / kante))
     bild = np.zeros((3, ny * px, nx * px), dtype="uint8")
@@ -107,7 +108,7 @@ def cir_laden(e, bezug):
               resampling=Resampling.average)
     profil = bezug.profile | {"dtype": "float32", "nodata": np.nan, "compress": "deflate",
                               "predictor": 3}
-    with rasterio.open(ROHDATEN / "vegetation_2_5m.tif", "w", **profil) as ds:
+    with rasterio.open(gebiet.rohdaten / "vegetation_2_5m.tif", "w", **profil) as ds:
         ds.write(ziel, 1)
     kahl = np.nanmean(ziel < e["untergrund"]["vegetation_ab"])
     print(f"  Vegetationsindex: Median {np.nanmedian(ziel):.2f}, "
@@ -116,11 +117,12 @@ def cir_laden(e, bezug):
 
 def main():
     e = einstellungen()
-    with rasterio.open(ROHDATEN / "dgm_2_5m.tif") as bezug:
-        print("Lade Realnutzungskarte …")
-        realnutzung_laden(e, bezug)
-        print("Lade Infrarot-Orthofoto …")
-        cir_laden(e, bezug)
+    for gebiet in gebiete(e):
+        with rasterio.open(gebiet.rohdaten / "dgm_2_5m.tif") as bezug:
+            print(f"{gebiet.name}: lade Realnutzungskarte …")
+            realnutzung_laden(e, gebiet, bezug)
+            print(f"{gebiet.name}: lade Infrarot-Orthofoto …")
+            cir_laden(e, gebiet, bezug)
 
 
 if __name__ == "__main__":

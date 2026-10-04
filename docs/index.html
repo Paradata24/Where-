@@ -33,6 +33,7 @@
   .rose path.an { fill: var(--akzent); }
   .rose text { font-size: 10.5px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; fill: #33404a; }
   .rose text.an { fill: #fff; font-weight: 600; }
+  .gebiete { display: flex; flex-wrap: wrap; gap: 6px; }
   .knoepfe { display: flex; gap: 6px; justify-content: center; margin-top: 4px; }
   button { font: inherit; font-size: 13px; padding: 4px 10px; border: 1px solid var(--rand); background: var(--bg); color: var(--text); border-radius: 4px; cursor: pointer; }
   label { display: flex; align-items: center; gap: 7px; margin: 6px 0; }
@@ -62,6 +63,9 @@
       werden darf und kann (Eigentum, Schutzgebiete, Luftraum, Gelände vor Ort, Wetter),
       muss jede Pilotin und jeder Pilot selbst prüfen.
     </div>
+
+    <h2>Gebiete</h2>
+    <div class="gebiete" id="gebiete"></div>
 
     <h2>Startrichtung</h2>
     <svg class="rose" id="rose" viewBox="-115 -115 230 230" aria-label="Windrose zur Auswahl der Startrichtung"></svg>
@@ -96,7 +100,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const PROVINZ = "Autonome Provinz Bozen – Südtirol";
-const karte = L.map("karte", { zoomControl: true }).setView([46.585, 11.455], 14);
+const karte = L.map("karte", { zoomControl: true }).setView([46.63, 11.38], 11);
 
 const hintergrund = {
   "Topografisch (OpenTopoMap)": L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
@@ -138,7 +142,7 @@ document.getElementById("alle").onclick = () => { SEKTOREN.forEach(s => gewaehlt
 document.getElementById("keine").onclick = () => { gewaehlt.clear(); aktualisieren(); };
 
 // --- Daten ---------------------------------------------------------------
-let kandidaten = [], flaechen = null, info = null;
+let kandidaten = [], flaechen = [], info = null;
 const ebeneKandidaten = L.layerGroup().addTo(karte);
 const ebeneFlaechen = L.layerGroup().addTo(karte);
 const ebeneBekannte = L.layerGroup().addTo(karte);
@@ -179,7 +183,7 @@ function aktualisieren() {
     if (wegAn && (p.weg_abstand_m == null || p.weg_abstand_m > wegMax)) continue;
     if (ohneWald && p.wald_hinweis) continue;
     anzahl++;
-    sichtbar.add(p.id);
+    sichtbar.add(f.gebiet + "/" + p.id);
     const [lon, lat] = f.geometry.coordinates;
     L.circleMarker([lat, lon], {
       radius: frei ? 6 : 4, weight: 1.5, color: "#fff",
@@ -190,9 +194,9 @@ function aktualisieren() {
     gewaehlt.size ? `${anzahl.toLocaleString("de")} Kandidaten angezeigt` : "Bitte mindestens eine Startrichtung wählen.";
 
   ebeneFlaechen.clearLayers();
-  if (flaechen && document.getElementById("flaechen").checked) {
-    L.geoJSON(flaechen, {
-      filter: f => gewaehlt.has(f.properties.sektor) && f.properties.kandidaten.some(id => sichtbar.has(id)),
+  if (document.getElementById("flaechen").checked) {
+    L.geoJSON({ type: "FeatureCollection", features: flaechen }, {
+      filter: f => gewaehlt.has(f.properties.sektor) && f.properties.kandidaten.some(id => sichtbar.has(f.gebiet + "/" + id)),
       style: { color: farbe("--flaeche"), weight: 1, fillOpacity: 0.25 },
       interactive: false
     }).addTo(ebeneFlaechen);
@@ -203,34 +207,54 @@ function aktualisieren() {
 ["nurFrei", "wegAn", "wegMax", "ohneWald", "flaechen", "bekannte"].forEach(id =>
   document.getElementById(id).addEventListener("input", aktualisieren));
 
-Promise.all([
-  fetch("daten/kandidaten.geojson").then(r => r.json()),
-  fetch("daten/kandidaten_info.json").then(r => r.json()),
-  fetch("daten/paraglidingearth.geojson").then(r => r.json()).catch(() => null),
-]).then(([k, i, pge]) => {
-  kandidaten = k.features; info = i;
-  document.getElementById("wegMax").value = i.einstellungen.eigenschaften.weg_max_m;
-  const s = i.einstellungen;
-  document.getElementById("info").innerHTML =
-    `Gebiet: ${i.gebiet}, Stand ${i.stand}. ${i.anzahl_kandidaten.toLocaleString("de")} Kandidaten, ` +
-    `davon ${i.anzahl_mit_freiem_abflug.toLocaleString("de")} mit freiem Abflug in mindestens einer Richtung.<br>` +
+function laden(pfad) { return fetch(pfad).then(r => { if (!r.ok) throw new Error(pfad + ": " + r.status); return r.json(); }); }
+
+laden("daten/gebiete.json").then(liste => Promise.all(liste.map(g => Promise.all([
+  laden(`daten/${g.kuerzel}/kandidaten.geojson`),
+  laden(`daten/${g.kuerzel}/kandidaten_info.json`),
+  laden(`daten/${g.kuerzel}/paraglidingearth.geojson`).catch(() => null),
+]).then(([k, i, pge]) => ({ g, k, i, pge }))))).then(gebiete => {
+  const knoepfe = document.getElementById("gebiete");
+  const alleGrenzen = [];
+  const infoTexte = [];
+  for (const { g, k, i, pge } of gebiete) {
+    k.features.forEach(f => { f.gebiet = g.kuerzel; kandidaten.push(f); });
+    info = info || i;
+    const [w, s, o, n] = g.grenzen;
+    const grenzen = L.latLngBounds([s, w], [n, o]);
+    alleGrenzen.push(grenzen);
+    L.rectangle(grenzen, { color: "#555", weight: 1.5, dashArray: "6 5", fill: false, interactive: false }).addTo(karte);
+    const b = document.createElement("button");
+    b.textContent = g.name;
+    b.onclick = () => karte.fitBounds(grenzen);
+    knoepfe.appendChild(b);
+    infoTexte.push(`<b>${g.name}</b>: Stand ${i.stand}, ${i.anzahl_kandidaten.toLocaleString("de")} Kandidaten, ` +
+      `davon ${i.anzahl_mit_freiem_abflug.toLocaleString("de")} mit freiem Abflug.`);
+    if (pge) {
+      L.geoJSON(pge, {
+        pointToLayer: (f, ll) => L.marker(ll, { icon: L.divIcon({ className: "", iconSize: [14, 14],
+          html: '<div style="width:14px;height:14px;background:#d6336c;border:2px solid #fff;border-radius:2px;box-shadow:0 0 0 1px #0006"></div>' }) }),
+        onEachFeature: (f, l) => l.bindPopup(`<b>${f.properties.name}</b><br>bekannter Startplatz, ` +
+          `${f.properties.takeoff_altitude || "?"} m<br>${f.properties.takeoff_description || ""}<br>` +
+          `<a href="${f.properties.pge_link}" target="_blank" rel="noopener">ParaglidingEarth</a>`)
+      }).addTo(ebeneBekannte);
+    }
+    laden(`daten/${g.kuerzel}/startflaechen.geojson`).then(fc => {
+      fc.features.forEach(f => { f.gebiet = g.kuerzel; flaechen.push(f); });
+      aktualisieren();
+    });
+  }
+  if (alleGrenzen.length) karte.fitBounds(alleGrenzen.reduce((a, b) => a.extend(b), L.latLngBounds(alleGrenzen[0].getSouthWest(), alleGrenzen[0].getNorthEast())));
+  karte.attributionControl.addAttribution("Bekannte Startplätze: © ParaglidingEarth-Mitwirkende (CC BY-SA 3.0)");
+  document.getElementById("wegMax").value = info.einstellungen.eigenschaften.weg_max_m;
+  const s = info.einstellungen;
+  document.getElementById("info").innerHTML = infoTexte.join("<br>") + "<br>" +
     `Kriterien: Neigung ${s.startflaeche.neigung_min_grad}–${s.startflaeche.neigung_max_grad}°, ` +
     `Ausrichtung ±${s.startflaeche.ausrichtung_toleranz_grad}°, Fläche ab ${s.startflaeche.mindestflaeche_m2} m², ` +
     `Startbahn ${s.startbahn.radius_m} m, Abflug ${s.hindernisse.laenge_m} m mit Gleitzahl ${s.hindernisse.gleitzahl}.<br>` +
-    `Daten: ${i.quellen.join("; ")}. Gelände- und Oberflächenmodell sind von 2004/05 – ` +
+    `Daten: ${info.quellen.join("; ")}. Gelände- und Oberflächenmodell sind von 2004/05 – ` +
     `Bäume, die seither gewachsen sind, fehlen.`;
-  if (pge) {
-    L.geoJSON(pge, {
-      pointToLayer: (f, ll) => L.marker(ll, { icon: L.divIcon({ className: "", iconSize: [14, 14],
-        html: '<div style="width:14px;height:14px;background:#d6336c;border:2px solid #fff;border-radius:2px;box-shadow:0 0 0 1px #0006"></div>' }) }),
-      onEachFeature: (f, l) => l.bindPopup(`<b>${f.properties.name}</b><br>bekannter Startplatz, ` +
-        `${f.properties.takeoff_altitude || "?"} m<br>${f.properties.takeoff_description || ""}<br>` +
-        `<a href="${f.properties.pge_link}" target="_blank" rel="noopener">ParaglidingEarth</a>`)
-    }).addTo(ebeneBekannte);
-    karte.attributionControl.addAttribution("Bekannte Startplätze: © ParaglidingEarth-Mitwirkende (CC BY-SA 3.0)");
-  }
   aktualisieren();
-  fetch("daten/startflaechen.geojson").then(r => r.json()).then(f => { flaechen = f; aktualisieren(); });
 }).catch(err => {
   document.getElementById("anzahl").textContent = "Daten konnten nicht geladen werden: " + err;
 });

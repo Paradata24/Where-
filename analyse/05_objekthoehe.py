@@ -1,9 +1,11 @@
 """Schritt 5: Objekthöhe (DOM minus DGM) berechnen und prüfen.
 
-Eingabe:  rohdaten/dgm_2_5m.tif, rohdaten/dom_2_5m.tif, rohdaten/realnutzung_2_5m.tif
-Ausgabe:  rohdaten/objekthoehe_2_5m.tif (nicht im Repository),
-          ergebnisse/objekthoehe_zusammenfassung.json,
-          docs/vorschau/objekthoehe.png
+Je Gebiet:
+Eingabe:  rohdaten/<gebiet>/dgm_2_5m.tif, dom_2_5m.tif, realnutzung_2_5m.tif
+Ausgabe:  rohdaten/<gebiet>/objekthoehe_2_5m.tif (nicht im Repository),
+          ergebnisse/<gebiet>/objekthoehe_zusammenfassung.json,
+          docs/vorschau/<gebiet>/objekthoehe.png
+Aufruf: python 05_objekthoehe.py [gebiet …]  (ohne Angabe: alle Gebiete)
 """
 
 import json
@@ -12,7 +14,7 @@ import matplotlib
 import numpy as np
 import rasterio
 
-from gemeinsam import ERGEBNISSE, PROJEKT, ROHDATEN, einstellungen
+from gemeinsam import einstellungen, gebiete
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -26,9 +28,15 @@ def lesen(pfad):
 
 def main():
     e = einstellungen()
+    for gebiet in gebiete(e):
+        print(f"{gebiet.name}:")
+        auswerten(e, gebiet)
+
+
+def auswerten(e, gebiet):
     oh = e["objekthoehe"]
-    dgm, profil, transform, crs = lesen(ROHDATEN / "dgm_2_5m.tif")
-    dom, profil_dom, transform_dom, _ = lesen(ROHDATEN / "dom_2_5m.tif")
+    dgm, profil, transform, crs = lesen(gebiet.rohdaten / "dgm_2_5m.tif")
+    dom, profil_dom, transform_dom, _ = lesen(gebiet.rohdaten / "dom_2_5m.tif")
 
     pruefungen = []
     if dgm.shape != dom.shape or transform != transform_dom:
@@ -51,7 +59,7 @@ def main():
 
     # Vergleich mit dem Wald der Realnutzungskarte (Schritt 4)
     vergleich = {}
-    rn_pfad = ROHDATEN / "realnutzung_2_5m.tif"
+    rn_pfad = gebiet.rohdaten / "realnutzung_2_5m.tif"
     if rn_pfad.exists():
         with rasterio.open(rn_pfad) as ds:
             karte_wald = np.isin(ds.read(1), e["realnutzung"]["wald"]) & gueltig
@@ -77,21 +85,21 @@ def main():
         "anteil_genau_null": round(float((np.abs(v) < 0.01).sum() / n), 3),
         "vergleich_realnutzung_wald": vergleich,
     }
-    ERGEBNISSE.mkdir(exist_ok=True)
-    (ERGEBNISSE / "objekthoehe_zusammenfassung.json").write_text(
+    gebiet.ergebnisse.mkdir(parents=True, exist_ok=True)
+    (gebiet.ergebnisse / "objekthoehe_zusammenfassung.json").write_text(
         json.dumps(zus, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(zus, ensure_ascii=False, indent=2))
 
     profil.update(dtype="float32", nodata=-9999, compress="deflate", predictor=3)
-    with rasterio.open(ROHDATEN / "objekthoehe_2_5m.tif", "w", **profil) as ds:
+    with rasterio.open(gebiet.rohdaten / "objekthoehe_2_5m.tif", "w", **profil) as ds:
         ds.write(np.where(gueltig, ndom, -9999).astype("float32"), 1)
 
     # Vorschaubild
-    vorschau = PROJEKT / "docs" / "vorschau"
+    vorschau = gebiet.vorschau
     vorschau.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(1, 2, figsize=(14, 7))
     im = ax[0].imshow(np.clip(ndom, 0, 40), cmap="YlGn", interpolation="nearest")
-    ax[0].set_title("Objekthöhe DOM − DGM (m, 0–40)")
+    ax[0].set_title(f"{gebiet.name}: Objekthöhe DOM − DGM (m, 0–40)")
     fig.colorbar(im, ax=ax[0], fraction=0.046)
     ax[1].hist(np.clip(v, -5, 60), bins=130, color="#3a7d44")
     ax[1].set_yscale("log")
@@ -101,6 +109,7 @@ def main():
         a.set_xticks([]), a.set_yticks([])
     fig.tight_layout()
     fig.savefig(vorschau / "objekthoehe.png", dpi=90)
+    plt.close(fig)
 
 
 if __name__ == "__main__":

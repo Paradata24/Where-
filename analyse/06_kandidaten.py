@@ -9,13 +9,16 @@ Für jede der 16 Startrichtungen:
 Danach werden Startpunkte verschiedener Richtungen, die nahe beieinander
 liegen, zu einem Kandidaten zusammengefasst.
 
-Eingabe:  rohdaten/dgm_2_5m.tif, rohdaten/dom_2_5m.tif,
-          rohdaten/realnutzung_2_5m.tif, rohdaten/vegetation_2_5m.tif (Schritt 4),
-          daten/osm/seilbahnen.geojson, stromleitungen.geojson, wege_strassen.geojson
-Ausgabe:  ergebnisse/kandidaten.geojson     – Startpunkte mit Eigenschaften
-          ergebnisse/startflaechen.geojson  – Startflächen je Richtung
-          ergebnisse/kandidaten_info.json   – Stand, Einstellungen, Kennzahlen
-          (dieselben Dateien auch in docs/daten/ für die Website)
+Je Gebiet:
+Eingabe:  rohdaten/<gebiet>/dgm_2_5m.tif, dom_2_5m.tif,
+          realnutzung_2_5m.tif, vegetation_2_5m.tif (Schritt 4),
+          daten/osm/<gebiet>/seilbahnen.geojson, stromleitungen.geojson, wege_strassen.geojson
+Ausgabe:  ergebnisse/<gebiet>/kandidaten.geojson     – Startpunkte mit Eigenschaften
+          ergebnisse/<gebiet>/startflaechen.geojson  – Startflächen je Richtung
+          ergebnisse/<gebiet>/kandidaten_info.json   – Stand, Einstellungen, Kennzahlen
+          (dieselben Dateien auch in docs/daten/<gebiet>/ für die Website)
+          docs/daten/gebiete.json – Liste der berechneten Gebiete für die Website
+Aufruf: python 06_kandidaten.py [gebiet …]  (ohne Angabe: alle Gebiete)
 """
 
 import json
@@ -33,7 +36,7 @@ from shapely import STRtree
 from shapely.geometry import Point, mapping, shape
 from shapely.ops import transform as shp_transform
 
-from gemeinsam import DATEN, ERGEBNISSE, PROJEKT, ROHDATEN, einstellungen, testgebiet_utm
+from gemeinsam import WEB_DATEN, einstellungen, gebiete
 
 SEKTOR_NAMEN_16 = ["N", "NNO", "NO", "ONO", "O", "OSO", "SO", "SSO",
                    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
@@ -120,13 +123,13 @@ def abflug_pruefen(zeilen, spalten, dgm, oberflaeche, dz, ds_, dd, gleitzahl, bl
     return frei, erste
 
 
-def leitungen_rastern(e, form, transform, crs):
+def leitungen_rastern(e, gebiet, form, transform, crs):
     """Höhe von Seilbahnen und Stromleitungen über Grund als Raster."""
     h = e["hindernisse"]
     hoehe = np.zeros(form, dtype="float64")
     for datei, wert in (("seilbahnen", h["seilbahn_hoehe_m"]),
                         ("stromleitungen", h["stromleitung_hoehe_m"])):
-        pfad = DATEN / "osm" / f"{datei}.geojson"
+        pfad = gebiet.osm / f"{datei}.geojson"
         if not pfad.exists():
             print(f"  Hinweis: {pfad.name} fehlt")
             continue
@@ -154,14 +157,39 @@ def runden(obj, stellen=6):
 
 def main():
     e = einstellungen()
+    for gebiet in gebiete(e):
+        print(f"=== {gebiet.name} ===")
+        berechnen(e, gebiet)
+    gebietsliste_schreiben(e)
+
+
+def gebietsliste_schreiben(e):
+    """docs/daten/gebiete.json: alle Gebiete, für die Ergebnisse vorliegen."""
+    liste = []
+    for gebiet in gebiete(e, auswahl=[]):
+        info_pfad = gebiet.web / "kandidaten_info.json"
+        if not info_pfad.exists():
+            continue
+        info = json.loads(info_pfad.read_text(encoding="utf-8"))
+        liste.append({"kuerzel": gebiet.kuerzel, "name": gebiet.name,
+                      "grenzen": runden(list(gebiet.wgs84()), 5),
+                      "stand": info["stand"],
+                      "anzahl_kandidaten": info["anzahl_kandidaten"],
+                      "anzahl_mit_freiem_abflug": info["anzahl_mit_freiem_abflug"]})
+    WEB_DATEN.mkdir(parents=True, exist_ok=True)
+    (WEB_DATEN / "gebiete.json").write_text(json.dumps(liste, ensure_ascii=False, indent=1),
+                                            encoding="utf-8")
+
+
+def berechnen(e, gebiet):
     sf, sb, hi = e["startflaeche"], e["startbahn"], e["hindernisse"]
     un, rn = e["untergrund"], e["realnutzung"]
 
     print("Lese Raster …")
-    dgm, transform, crs, _ = raster(ROHDATEN / "dgm_2_5m.tif")
-    dom, _, _, _ = raster(ROHDATEN / "dom_2_5m.tif")
-    nutzung, _, _, _ = raster(ROHDATEN / "realnutzung_2_5m.tif")
-    veg, _, _, _ = raster(ROHDATEN / "vegetation_2_5m.tif")
+    dgm, transform, crs, _ = raster(gebiet.rohdaten / "dgm_2_5m.tif")
+    dom, _, _, _ = raster(gebiet.rohdaten / "dom_2_5m.tif")
+    nutzung, _, _, _ = raster(gebiet.rohdaten / "realnutzung_2_5m.tif")
+    veg, _, _, _ = raster(gebiet.rohdaten / "vegetation_2_5m.tif")
     res = transform.a
     zelle_m2 = res * res
     form = dgm.shape
@@ -181,15 +209,15 @@ def main():
 
     # --- Hindernisse: Oberfläche, über die die Gleitlinie führen muss --------
     objekt = np.where(ndom >= hi["objekt_ab_m"], ndom, 0.0)
-    objekt = np.maximum(objekt, leitungen_rastern(e, form, transform, crs))
+    objekt = np.maximum(objekt, leitungen_rastern(e, gebiet, form, transform, crs))
     oberflaeche = dgm + objekt + hi["sicherheitsabstand_m"]
     oberflaeche[~np.isfinite(oberflaeche)] = np.inf  # ohne Daten = nicht prüfbar
 
     neigung, ausrichtung = neigung_ausrichtung(dgm, res)
     neigung_ok = (neigung > sf["neigung_min_grad"]) & (neigung < sf["neigung_max_grad"])
 
-    # Nur Startpunkte innerhalb des Testgebiets (ohne Rand)
-    w, s, o, n = testgebiet_utm(e)
+    # Nur Startpunkte innerhalb des Gebiets (ohne Rand)
+    w, s, o, n = gebiet.utm()
     inv = ~transform
     c0, r0 = inv * (w, n)
     c1, r1 = inv * (o, s)
@@ -304,9 +332,14 @@ def main():
         gruppen.setdefault(wurzel(i), []).append(i)
 
     # Abstand zum nächsten Weg (nur Eigenschaft, kein Ausschluss)
-    wege = gpd.read_file(DATEN / "osm" / "wege_strassen.geojson").to_crs(crs)
-    wege = wege[wege.geometry.type.isin(["LineString", "MultiLineString"])]
-    baum = STRtree(list(wege.geometry))
+    wege_pfad = gebiet.osm / "wege_strassen.geojson"
+    baum = None
+    if wege_pfad.exists():
+        wege = gpd.read_file(wege_pfad).to_crs(crs)
+        wege = wege[wege.geometry.type.isin(["LineString", "MultiLineString"])]
+        baum = STRtree(list(wege.geometry))
+    else:
+        print(f"  Hinweis: {wege_pfad.name} fehlt – Abstand zum Weg bleibt leer")
 
     nach_wgs = Transformer.from_crs(crs, "EPSG:4326", always_xy=True).transform
     kandidaten = []
@@ -318,7 +351,7 @@ def main():
         frei = [punkte[i]["sektor"] for i in reihenfolge if punkte[i]["frei"]]
         blockiert = [punkte[i]["sektor"] for i in reihenfolge if not punkte[i]["frei"]]
         pt = Point(p["x"], p["y"])
-        idx = baum.query_nearest(pt)
+        idx = baum.query_nearest(pt) if baum is not None else []
         weg = float(min(pt.distance(baum.geometries[i]) for i in idx)) if len(idx) else None
         lon, lat = nach_wgs(p["x"], p["y"])
         for i in glieder:
@@ -354,7 +387,7 @@ def main():
 
     # --- Abgleich mit bekannten Startplätzen ----------------------------------
     abgleich = []
-    pge = DATEN / "startplaetze" / "paraglidingearth.geojson"
+    pge = gebiet.startplaetze / "paraglidingearth.geojson"
     if pge.exists() and kandidaten:
         nach_utm = Transformer.from_crs("EPSG:4326", crs, always_xy=True).transform
         kxy = np.array([nach_utm(*k["geometry"]["coordinates"]) for k in kandidaten])
@@ -372,7 +405,8 @@ def main():
 
     info = {
         "stand": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        "gebiet": e["testgebiet"]["name"],
+        "gebiet": gebiet.name,
+        "kuerzel": gebiet.kuerzel,
         "sektoren": namen,
         "anzahl_kandidaten": len(kandidaten),
         "anzahl_mit_freiem_abflug": sum(bool(k["properties"]["sektoren_frei"]) for k in kandidaten),
@@ -387,8 +421,8 @@ def main():
         ],
     }
 
-    ERGEBNISSE.mkdir(exist_ok=True)
-    web = PROJEKT / "docs" / "daten"
+    gebiet.ergebnisse.mkdir(parents=True, exist_ok=True)
+    web = gebiet.web
     web.mkdir(parents=True, exist_ok=True)
     dateien = {
         "kandidaten.geojson": {"type": "FeatureCollection",
@@ -397,7 +431,7 @@ def main():
         "kandidaten_info.json": info,
     }
     for name, inhalt in dateien.items():
-        ziel = ERGEBNISSE / name
+        ziel = gebiet.ergebnisse / name
         ziel.write_text(json.dumps(inhalt, ensure_ascii=False, separators=(",", ":")),
                         encoding="utf-8")
         shutil.copy(ziel, web / name)

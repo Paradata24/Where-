@@ -1,9 +1,11 @@
-"""Schritt 2: OpenStreetMap-Daten für das Testgebiet laden.
+"""Schritt 2: OpenStreetMap-Daten je Gebiet laden.
 
 Lädt über die Overpass-Schnittstelle: Wege und Straßen, Seilbahnen und
 Materialseilbahnen, Stromleitungen sowie bekannte Gleitschirm-Startplätze.
 Der Untergrund (Wald, Fels, Wiese) kommt NICHT aus OSM, sondern aus der
-Realnutzungskarte und dem Infrarot-Orthofoto der Provinz (Schritt 4). Ergebnis: je eine GeoJSON-Datei in daten/osm/.
+Realnutzungskarte und dem Infrarot-Orthofoto der Provinz (Schritt 4).
+Ergebnis: je eine GeoJSON-Datei in daten/osm/<gebiet>/.
+Aufruf: python 02_osm_laden.py [gebiet …]  (ohne Angabe: alle Gebiete)
 Lizenz der Daten: ODbL, © OpenStreetMap-Mitwirkende.
 """
 
@@ -16,7 +18,7 @@ import requests
 from shapely.geometry import LineString, Point, Polygon, mapping
 from shapely.ops import polygonize, unary_union
 
-from gemeinsam import DATEN, einstellungen, testgebiet_wgs84
+from gemeinsam import einstellungen, gebiete
 
 # Name der Ausgabedatei -> Overpass-Filter (ohne Begrenzungsrechteck)
 THEMEN = {
@@ -91,18 +93,23 @@ def geometrie(el):
 
 def main():
     e = einstellungen()
-    w, s, o, n = testgebiet_wgs84(e, mit_rand=True)
-    bbox = f"({s:.6f},{w:.6f},{n:.6f},{o:.6f})"
-    ziel = DATEN / "osm"
-    ziel.mkdir(parents=True, exist_ok=True)
     stand = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    # Optional: nur bestimmte Themen laden, z. B. "python 02_osm_laden.py seilbahnen"
-    auswahl = sys.argv[1:] or list(THEMEN)
     ok = True
-    for name in auswahl:
+    for gebiet in gebiete(e):
+        ok &= gebiet_laden(e, gebiet, stand)
+    sys.exit(0 if ok else 1)
+
+
+def gebiet_laden(e, gebiet, stand):
+    w, s, o, n = gebiet.wgs84(mit_rand=True)
+    bbox = f"({s:.6f},{w:.6f},{n:.6f},{o:.6f})"
+    ziel = gebiet.osm
+    ziel.mkdir(parents=True, exist_ok=True)
+    ok = True
+    for name in THEMEN:
         filter_ = THEMEN[name]
         abfrage = "[out:json][timeout:180];(" + "".join(f"{f}{bbox};" for f in filter_) + ");out geom;"
-        print(f"Lade {name} …")
+        print(f"{gebiet.name}: lade {name} …")
         try:
             daten = overpass(e, abfrage)
         except RuntimeError as ex:
@@ -129,7 +136,7 @@ def main():
         (ziel / f"{name}.geojson").write_text(json.dumps(fc, ensure_ascii=False), encoding="utf-8")
         print(f"  {len(features)} Objekte")
         time.sleep(5)  # Overpass schonen
-    sys.exit(0 if ok else 1)
+    return ok
 
 
 if __name__ == "__main__":

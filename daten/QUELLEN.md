@@ -1,6 +1,6 @@
 # Datenquellen – Startplatz-Finder Südtirol
 
-Stand der Recherche: 01.10.2026. Testgebiet: 6 × 6 km um das Rittner Horn
+Stand der Recherche: 01.10.2026. Erstes Testgebiet: 6 × 6 km um das Rittner Horn
 (EPSG:25832, West 685 460 / Süd 5 162 330 / Ost 691 460 / Nord 5 168 330).
 
 ## 1. Höhenmodelle der Autonomen Provinz Bozen

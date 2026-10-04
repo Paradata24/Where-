@@ -1,0 +1,30 @@
+{
+  "flaeche_gesamt_ha": 5184.0,
+  "zellen_ohne_wert": 0,
+  "dgm_hoehe_min_max_m": [
+    1018.7,
+    2678.9
+  ],
+  "baum_grenze_m": 3.0,
+  "flaeche_objekt_ueber_grenze_ha": 1720.9,
+  "anteil_objekt_ueber_grenze": 0.332,
+  "objekthoehe_baumzellen_perzentile_m": {
+    "p10": 4.1,
+    "p25": 6.3,
+    "p50": 10.9,
+    "p75": 16.6,
+    "p90": 21.5,
+    "p99": 29.3
+  },
+  "objekthoehe_max_m": 45.1,
+  "objekthoehe_min_m": -3.1,
+  "zellen_unplausibel_hoch": 0,
+  "zellen_negativ": 4574,
+  "anteil_genau_null": 0.001,
+  "vergleich_realnutzung_wald": {
+    "karte_wald_ha": 2365.2,
+    "anteil_karte_wald_mit_objekt_ueber_grenze": 0.676,
+    "objekt_ueber_grenze_ausserhalb_karte_wald_ha": 122.2,
+    "median_objekthoehe_im_karte_wald_m": 6.9
+  }
+}

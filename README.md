@@ -12,8 +12,19 @@ Die ausführliche Projektbeschreibung steht in [CLAUDE.md](CLAUDE.md).
 | Phase | Inhalt | Stand |
 |---|---|---|
 | 1 | Prüfen, ob die Daten der Provinz automatisch ladbar sind | erledigt (04.10.2026) |
-| 2 | Berechnung für das Testgebiet Rittner Horn (6 × 6 km), Karte auf GitHub Pages | erster Stand (04.10.2026), wartet auf Prüfung |
+| 2 | Berechnung für Testgebiete (je 6 × 6 km): Rittner Horn, Sarntal – Großer Mittager; Karte auf GitHub Pages | erster Stand (04.10.2026), wartet auf Prüfung |
 | 3 | Ausweitung auf ganz Südtirol (erst nach Freigabe) | offen |
+
+## Testgebiete
+
+Die Gebiete stehen in `einstellungen/einstellungen.toml` unter `[[gebiete.liste]]`
+(Kürzel, Name, Mittelpunkt). Ein weiteres Gebiet kommt dazu, indem man dort einen
+neuen Block mit den gleichen Feldern einfügt; die Berechnung startet dann automatisch.
+
+| Kürzel | Name | Mittelpunkt |
+|---|---|---|
+| `rittner_horn` | Ritten – Rittner Horn | Gipfel Rittner Horn |
+| `grosser_mittager` | Sarntal – Großer Mittager | Gipfel Großer Mittager (2422 m) |
 
 ## Website
 
@@ -80,7 +91,7 @@ Die Berechnung läuft auf GitHub (GitHub Actions), nicht auf dem eigenen Compute
 1. Im Repository oben auf den Reiter **Actions** klicken.
 2. Links **Berechnung** wählen.
 3. Rechts auf **Run workflow** klicken, den Zweig auswählen und nochmals **Run workflow** klicken.
-4. Nach ca. 10–15 Minuten erscheint ein grüner Haken. Die neuen Ergebnisse werden automatisch
+4. Nach ca. 15 Minuten je Gebiet erscheint ein grüner Haken. Die neuen Ergebnisse werden automatisch
    gespeichert; die Website zeigt sie nach 1–2 Minuten.
 
 Ablauf (Ordner `analyse/`):
@@ -93,7 +104,10 @@ Ablauf (Ordner `analyse/`):
 | 3 | `03_startplaetze_laden.py` | lädt bekannte Startplätze (ParaglidingEarth) |
 | 4 | `04_untergrund_laden.py` | lädt Realnutzungskarte und Infrarot-Orthofoto |
 | 5 | `05_objekthoehe.py` | berechnet und prüft die Objekthöhe (DOM − DGM) |
-| 6 | `06_kandidaten.py` | berechnet die Kandidaten → `ergebnisse/` und `docs/daten/` |
+| 6 | `06_kandidaten.py` | berechnet die Kandidaten → `ergebnisse/<gebiet>/` und `docs/daten/<gebiet>/` |
+
+Jedes Skript rechnet alle Gebiete. Mit einem Kürzel dahinter nur dieses, z. B.
+`python 06_kandidaten.py grosser_mittager`.
 
 ## Ordner
 
@@ -102,8 +116,8 @@ Ablauf (Ordner `analyse/`):
 | `einstellungen/` | alle einstellbaren Werte (Neigung, Fläche, Gleitzahl …) |
 | `analyse/` | Python-Skripte der Berechnung, nummeriert nach Reihenfolge |
 | `rohdaten/` | heruntergeladene Höhenmodelle usw. (nur während der Berechnung, nicht auf GitHub) |
-| `daten/` | kleine Eingangsdaten (OSM, bekannte Startplätze) und [QUELLEN.md](daten/QUELLEN.md) |
-| `ergebnisse/` | kompakte Ergebnisse (GeoJSON) |
+| `daten/` | kleine Eingangsdaten je Gebiet (OSM, bekannte Startplätze) und [QUELLEN.md](daten/QUELLEN.md) |
+| `ergebnisse/` | kompakte Ergebnisse (GeoJSON), ein Unterordner je Gebiet |
 | `docs/` | die Website (GitHub Pages); `docs/daten/` enthält eine Kopie der Ergebnisse |
 | `docs/vorschau/` | Testbilder und die Masterarbeit (PDF) |
 | `.github/workflows/` | Abläufe für GitHub Actions („Datenprüfung“, „Berechnung“) |

@@ -5,18 +5,30 @@
 # Grundlage der Kriterien: E. Egger, Masterarbeit TU Graz 2022, Kap. 2.2 und 8.2
 # (PDF: docs/vorschau/74383.pdf). Seitenangaben beziehen sich auf diese Arbeit.
 
-[testgebiet]
-name = "Rittner Horn"
+[gebiete]
 # Koordinatensystem der Provinz Bozen: ETRS89 / UTM Zone 32N
 crs = "EPSG:25832"
+# Kantenlänge der quadratischen Testgebiete in Metern (6 × 6 km)
+kantenlaenge_m = 6000
+# Zusätzlicher Rand, der mitgeladen wird, damit die Hindernisprüfung (500 m
+# Abflug) auch für Kandidaten am Rand eines Gebiets vollständig ist
+rand_m = 600
+
+# Jedes Gebiet: Kürzel (für Ordnernamen, ohne Leer- und Sonderzeichen),
+# Name (für die Website) und Mittelpunkt in EPSG:25832.
+[[gebiete.liste]]
+kuerzel = "rittner_horn"
+name = "Ritten – Rittner Horn"
 # Gipfel Rittner Horn (OSM-Knoten 424414599), auf 10 m gerundet
 mitte_x = 688460
 mitte_y = 5165330
-# Kantenlänge des quadratischen Testgebiets in Metern (6 × 6 km)
-kantenlaenge_m = 6000
-# Zusätzlicher Rand, der mitgeladen wird, damit die Hindernisprüfung (500 m
-# Abflug) auch für Kandidaten am Rand des Testgebiets vollständig ist
-rand_m = 600
+
+[[gebiete.liste]]
+kuerzel = "grosser_mittager"
+name = "Sarntal – Großer Mittager"
+# Gipfel Großer Mittager, 2422 m (OSM-Knoten 1045719310), auf 10 m gerundet
+mitte_x = 676660
+mitte_y = 5172670
 
 [hoehenmodelle]
 # Web Coverage Service (WCS) der Provinz Bozen

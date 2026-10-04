@@ -15,7 +15,7 @@ import numpy as np
 import rasterio
 import requests
 
-from gemeinsam import einstellungen
+from gemeinsam import einstellungen, gebiete
 
 ZEILEN = []
 
@@ -59,7 +59,7 @@ def kachel_laden(url, layer, w, s, kante, ziel):
 def main():
     e = einstellungen()
     h = e["hoehenmodelle"]
-    t = e["testgebiet"]
+    t = gebiete(e, auswahl=[])[0]  # Proben im ersten Gebiet
     url = h["wcs_url"]
     alles_ok = True
 
@@ -81,8 +81,8 @@ def main():
         alles_ok &= melden(False, "WCS-Dienst der Provinz (GetCapabilities)", str(ex)[:150])
 
     # 2) Probe 1 × 1 km am Rittner Horn: DGM und DOM, dazu Objekthöhe
-    w = round(t["mitte_x"] - 500, -3)
-    s = round(t["mitte_y"] - 500, -3)
+    w = round(t.mitte_x - 500, -3)
+    s = round(t.mitte_y - 500, -3)
     with tempfile.TemporaryDirectory() as tmp:
         proben = {}
         for name, layer in (("DGM", h["dgm_layer"]), ("DOM", h["dom_layer"])):

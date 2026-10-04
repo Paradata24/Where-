@@ -69,7 +69,7 @@ Ihre Kriterien gelten als Startwerte. **Alle Werte müssen später einstellbar s
 
 ## Testgebiet
 
-Zuerst nur ein Gebiet von ca. 6 × 6 km um das Rittner Horn (Ritten, Südtirol). Erst wenn die Ergebnisse dort plausibel sind, wird auf ganz Südtirol erweitert.
+Zuerst nur Testgebiete von je ca. 6 × 6 km: Rittner Horn (Ritten) und – seit 04.10.2026 – Sarntal um den Großen Mittager. Die Gebiete stehen in `einstellungen/einstellungen.toml` unter `[[gebiete.liste]]`. Erst wenn die Ergebnisse plausibel sind, wird auf ganz Südtirol erweitert.
 
 ## Hinweis für die Website (Pflicht)
 
