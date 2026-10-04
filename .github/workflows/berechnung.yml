@@ -1,10 +1,18 @@
 # Phase 2: Berechnet die Startplatz-Kandidaten für das Testgebiet und speichert
 # die Ergebnisse (ergebnisse/ und docs/daten/) im Repository.
-# Starten: Reiter "Actions" → "Berechnung" → "Run workflow" → Zweig wählen → "Run workflow".
+# Starten: Reiter "Actions" → "Berechnung" → "Run workflow" → Zweig wählen → "Run workflow"
+# (der Knopf erscheint, sobald diese Datei auf dem Zweig main liegt).
+# Außerdem startet die Berechnung automatisch, wenn sich Einstellungen oder Skripte ändern.
 name: Berechnung
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "einstellungen/**"
+      - "analyse/**"
+      - "requirements.txt"
+      - ".github/workflows/berechnung.yml"
 
 permissions:
   contents: write
@@ -56,7 +64,8 @@ jobs:
             echo "Keine Änderungen an den Ergebnissen."
           else
             git commit -m "Ergebnisse neu berechnet (Workflow Berechnung, Lauf ${{ github.run_number }})"
-            git push
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
           echo "## Ergebnis" >> "$GITHUB_STEP_SUMMARY"
           python -c "import json; i=json.load(open('ergebnisse/kandidaten_info.json')); print(f\"{i['anzahl_kandidaten']} Kandidaten, davon {i['anzahl_mit_freiem_abflug']} mit freiem Abflug\")" >> "$GITHUB_STEP_SUMMARY"
