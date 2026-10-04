@@ -79,6 +79,7 @@ Die Ergebnisse sind **Kandidaten, keine geprüften oder erlaubten Startplätze**
 - `einstellungen/` – alle einstellbaren Werte (Neigung, Fläche, Gleitzahl …) in einer Datei, nichts fest im Code.
 - `analyse/` – Python-Skripte der Berechnung, nummeriert nach Reihenfolge.
 - `rohdaten/` – heruntergeladene Höhenmodelle usw. Nur lokal bzw. in der Cloud, per `.gitignore` ausgeschlossen.
+- `daten/` – kleine Eingangsdaten (OSM-Auszüge, bekannte Startplätze) und `QUELLEN.md` mit allen Quellen, Lizenzen und Aufnahmejahren.
 - `ergebnisse/` – kompakte Ergebnisse (z. B. GeoJSON). Klein halten, damit die Website schnell lädt.
 - `docs/` – die Website (GitHub Pages veröffentlicht diesen Ordner).
 - `docs/vorschau/` – Testseiten zum Prüfen von Zwischenergebnissen.
