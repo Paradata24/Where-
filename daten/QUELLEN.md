@@ -27,14 +27,23 @@ Stand der Recherche: 01.10.2026. Testgebiet: 6 × 6 km um das Rittner Horn
 **Achtung, Alter:** Der Waldstand im DOM ist rund 20 Jahre alt (Zuwachs, Schlägerungen,
 Sturm Vaia 2018). Das Gelände selbst ist dafür unproblematisch.
 
-**Erreichbarkeit (01.10.2026):** Der WCS-Server `geoservices9.civis.bz.it` war aus der
-Cloud-Umgebung nicht erreichbar. Er antwortete mit „HTTP 503 Service Unavailable“ oder
-ohne Antwort. DGM und DOM konnten deshalb noch nicht geladen werden.
+**Erreichbarkeit (01.10.2026):** Der WCS-Server war aus der Cloud-Umgebung nicht erreichbar
+(„HTTP 503 Service Unavailable“).
+
+**Erreichbarkeit (04.10.2026, Phase 1):** Der WCS-Server funktioniert. Getestet mit
+`analyse/00_datenpruefung.py` (auch als GitHub-Actions-Workflow „Datenprüfung“):
+- Probe 1 × 1 km am Rittner Horn: DGM und DOM je 400 × 400 Zellen, 2,5 m, EPSG:25832, 100 % gültig.
+- Große Kachel 20 × 20 km: 8000 × 8000 Zellen, 268 MB (unkomprimiertes GeoTIFF, float32), 1–4 Minuten.
+- Kein Zugangsschlüssel nötig (`Fees: NONE`, `AccessConstraints: NONE`).
+- Es gibt **keinen** ZIP-/Kachel-Download auf dem Open-Data-Portal; der WCS ist der offizielle Bezugsweg.
+- Ganz Südtirol (Umriss-Rechteck ca. 155 × 105 km) ≈ 40 Kacheln à 20 km je Modell
+  → ca. 11 GB je Modell unkomprimiert. Darum Verarbeitung Kachel für Kachel, Rohdaten danach löschen.
 
 **Weitere Höhenmodelle, die gefunden wurden (noch nicht verwendet):**
 - DGM 0,5 m / DOM 0,5 m (`p_bz-Elevation:DigitalTerrainModel-0.5m`, `…DigitalElevationModel-0.5m`),
   gleicher WCS, CC0, laut Metadaten nur für die *besiedelten Gebiete* Südtirols (veröffentlicht 2013).
-  Ob das Rittner Horn abgedeckt ist, muss noch geprüft werden.
+  Geprüft am 04.10.2026: Der Gipfelbereich des Rittner Horns ist **nicht** abgedeckt (nur Leerwerte).
+- DGM/DOM 0,2 m Etschtal 2024 (`…EtschAdige-0.2m-2024`): nur Etschtal, aktueller Waldstand.
 - DOM Gletscher 0,5 m (2016/17 und 2023): nur Gletscherflächen, für uns nicht relevant.
 
 ## 2. Orthofoto (Hintergrund zur Kontrolle)

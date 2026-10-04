@@ -42,3 +42,9 @@ baum_ab_m = 3.0
 unplausibel_ab_m = 60.0
 # Negative Werte unter dieser Grenze werden als Datenfehler gemeldet
 negativ_grenze_m = -1.0
+
+[gesamtgebiet]
+# Für die spätere Berechnung ganz Südtirols (Phase 3): Die Höhenmodelle werden
+# in quadratischen Kacheln dieser Kantenlänge geladen und verarbeitet.
+# 20 km = 8000 × 8000 Zellen, ca. 270 MB je Kachel (Test am 04.10.2026: 73 s).
+kachel_m = 20000
